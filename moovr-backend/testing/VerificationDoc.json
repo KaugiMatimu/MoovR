@@ -1,0 +1,78 @@
+{
+  "API": {
+    "endpoint": "/api/v1/driver/upload-document",
+    "method": "POST",
+    "description": "Uploads a document based on the specified documentType and associated data."
+  },
+  "documentTypes": [
+    {
+      "documentType": "drivingLicense",
+      "description": "Uploads a driving license image.",
+      "example": {
+        "documentType": "drivingLicense",
+        "file": "driving_license_image.jpg"
+      }
+    },
+    {
+      "documentType": "cnicFront",
+      "description": "Uploads the front image of CNIC.",
+      "example": {
+        "documentType": "cnicFront",
+        "file": "cnic_front_image.jpg"
+      }
+    },
+    {
+      "documentType": "vehicleInsurance",
+      "description": "Uploads vehicle insurance details along with the certificate image.",
+      "requiredBodyFields": [
+        "documentType",
+        "insuranceName",
+        "policyNumber",
+        "policyStartDate",
+        "policyExpiryDate",
+        "policyCoverage"
+      ],
+      "example": {
+        "documentType": "vehicleInsurance",
+        "insuranceName": "ABC Insurance",
+        "policyNumber": "123456789",
+        "policyStartDate": "2023-01-01",
+        "policyExpiryDate": "2024-01-01",
+        "policyCoverage": "Comprehensive",
+        "file": "insurance_certificate_image.jpg"
+      }
+    },
+    {
+      "documentType": "vehicleRegistrationBook",
+      "description": "Uploads vehicle registration book details along with the book image.",
+      "requiredBodyFields": [
+        "documentType",
+        "ownerName",
+        "registrationNumber",
+        "vehicleMakeModel",
+        "registrationDate",
+        "registrationExpiryDate"
+      ],
+      "example": {
+        "documentType": "vehicleRegistrationBook",
+        "ownerName": "John Doe",
+        "registrationNumber": "ABC1234",
+        "vehicleMakeModel": "Toyota Corolla 2020",
+        "registrationDate": "2023-01-01",
+        "registrationExpiryDate": "2024-01-01",
+        "file": "registration_book_image.jpg"
+      }
+    }
+  ],
+  "errorResponses": {
+    "400": {
+      "message": "File is required or invalid document type."
+    },
+    "404": {
+      "message": "User not found."
+    },
+    "500": {
+      "message": "Error uploading document."
+    }
+  }
+}

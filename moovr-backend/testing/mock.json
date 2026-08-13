@@ -1,0 +1,404 @@
+{
+  "routes": [
+    {
+      "name": "Verify Phone & Send OTP",
+      "method": "POST",
+      "url": "/api/v1/auth/verify-phone",
+      "request_body": {
+        "phone": "string"
+      },
+      "response": {
+        "message": "OTP sent successfully"
+      }
+    },
+    {
+      "name": "Verify OTP & Login",
+      "method": "POST",
+      "url": "/api/v1/auth/verify-otp",
+      "request_body": {
+        "phone": "string",
+        "otp": "string"
+      },
+      "response": {
+        "message": "Phone verified successfully",
+        "token": "jwt_token"
+      }
+    },
+    {
+      "name": "Register User",
+      "method": "POST",
+      "url": "/api/v1/auth/register",
+      "request_body": {
+        "phone": "string",
+        "role": "user | driver | admin",
+        "firstName": "string",
+        "lastName": "string",
+        "city": "string",
+        "driverType": "string",
+        "serviceType": "string",
+        "carCategory": "string",
+        "referralCode": "string"
+      },
+      "response": {
+        "message": "User Registered successfully",
+        "user": {
+          "firstName": "string",
+          "lastName": "string",
+          "phone": "string",
+          "role": "string",
+          "city": "string",
+          "driverType": "string",
+          "serviceType": "string",
+          "carCategory": "string",
+          "referralCode": "string"
+        },
+        "token": "jwt_token"
+      }
+    },
+    {
+      "name": "Login User",
+      "method": "POST",
+      "url": "/api/v1/auth/login",
+      "request_body": {
+        "phone": "string",
+        "otp": "string"
+      },
+      "response": {
+        "message": "Login successful",
+        "token": "jwt_token"
+      }
+    },
+    {
+      "name": "Get User Info",
+      "method": "GET",
+      "url": "/api/v1/auth/get-user",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "response": {
+        "user": {
+          "firstName": "string",
+          "lastName": "string",
+          "phone": "string",
+          "role": "string",
+          "city": "string",
+          "driverType": "string",
+          "serviceType": "string",
+          "carCategory": "string",
+          "referralCode": "string"
+        }
+      }
+    },
+    {
+      "name": "Update User Info",
+      "method": "PUT",
+      "url": "/api/v1/auth/update-user",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "request_body": {
+        "firstName": "string",
+        "lastName": "string",
+        "email": "string"
+      },
+      "response": {
+        "message": "User updated successfully",
+        "user": {
+          "firstName": "string",
+          "lastName": "string",
+          "phone": "string",
+          "role": "string",
+          "city": "string",
+          "driverType": "string",
+          "serviceType": "string",
+          "carCategory": "string",
+          "referralCode": "string"
+        }
+      }
+    },
+    {
+      "name": "Delete User",
+      "method": "DELETE",
+      "url": "/api/v1/auth/delete-user",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "response": {
+        "message": "User deleted successfully"
+      }
+    },
+    {
+      "name": "Get All Users",
+      "method": "GET",
+      "url": "/api/v1/auth/users",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "response": {
+        "users": [
+          {
+            "firstName": "string",
+            "lastName": "string",
+            "phone": "string",
+            "role": "string",
+            "city": "string",
+            "driverType": "string",
+            "serviceType": "string",
+            "carCategory": "string",
+            "referralCode": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Update Profile Picture",
+      "method": "PUT",
+      "url": "/api/v1/auth/update-user/profile",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "request_body": {
+        "image": "file"
+      },
+      "response": {
+        "message": "Profile picture updated",
+        "imageUrl": "string"
+      }
+    },
+    {
+      "name": "Update Driver Availability",
+      "method": "PUT",
+      "url": "/api/v1/auth/driver/availability",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "request_body": {
+        "availability": "boolean"
+      },
+      "response": {
+        "message": "Driver availability updated",
+        "driver": {
+          "availability": "boolean"
+        }
+      }
+    },
+    {
+      "name": "Get All Drivers",
+      "method": "GET",
+      "url": "/api/v1/auth/drivers/all",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "response": {
+        "drivers": [
+          {
+            "firstName": "string",
+            "lastName": "string",
+            "phone": "string",
+            "role": "string",
+            "city": "string",
+            "driverType": "string",
+            "serviceType": "string",
+            "carCategory": "string",
+            "referralCode": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Available Drivers",
+      "method": "GET",
+      "url": "/api/v1/auth/drivers/available",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "response": {
+        "availableDrivers": [
+          {
+            "firstName": "string",
+            "lastName": "string",
+            "phone": "string",
+            "role": "string",
+            "city": "string",
+            "driverType": "string",
+            "serviceType": "string",
+            "carCategory": "string",
+            "referralCode": "string"
+          }
+        ]
+      }
+    },
+    
+    {
+      "name": "Accept Terms",
+      "method": "POST",
+      "url": "/api/v1/driver/accept-terms",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "response": {
+        "message": "Terms and conditions accepted successfully",
+        "updatedUser": {
+          "firstName": "string",
+          "lastName": "string",
+          "phone": "string",
+          "role": "string",
+          "city": "string",
+          "driverType": "string",
+          "serviceType": "string",
+          "carCategory": "string",
+          "referralCode": "string"
+        }
+      }
+    },
+    {
+      "name": "Create Car Listing",
+      "method": "POST",
+      "url": "/api/v1/cars/list",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "request_body": {
+        "vehicleName": "string",
+        "make": "string",
+        "model": "string",
+        "description": "string",
+        "price": "number",
+        "image": "file"
+      },
+      "response": {
+        "message": "Car listing created successfully",
+        "newCarListing": {
+          "vehicleName": "string",
+          "make": "string",
+          "model": "string",
+          "description": "string",
+          "price": "number",
+          "image": "string"
+        }
+      }
+    },
+    {
+      "name": "Update Car Listing",
+      "method": "PUT",
+      "url": "/api/v1/cars/list/:id",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "request_body": {
+        "vehicleName": "string",
+        "make": "string",
+        "model": "string",
+        "description": "string",
+        "price": "number",
+        "image": "file"
+      },
+      "response": {
+        "message": "Car listing updated successfully",
+        "carListing": {
+          "vehicleName": "string",
+          "make": "string",
+          "model": "string",
+          "description": "string",
+          "price": "number",
+          "image": "string"
+        }
+      }
+    },
+    {
+      "name": "Get All Car Listings",
+      "method": "GET",
+      "url": "/api/v1/cars/list",
+      "response": {
+        "carListings": [
+          {
+            "vehicleName": "string",
+            "make": "string",
+            "model": "string",
+            "description": "string",
+            "price": "number",
+            "image": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get All Active Car Listings",
+      "method": "GET",
+      "url": "/api/v1/cars/active",
+      "response": {
+        "activeCars": [
+          {
+            "vehicleName": "string",
+            "make": "string",
+            "model": "string",
+            "description": "string",
+            "price": "number",
+            "image": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Update Car Listing Status",
+      "method": "PUT",
+      "url": "/api/v1/cars/list/:id/status",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "request_body": {
+        "status": "active | inactive | removed"
+      },
+      "response": {
+        "message": "Car listing status updated successfully",
+        "carListing": {
+          "vehicleName": "string",
+          "make": "string",
+          "model": "string",
+          "description": "string",
+          "price": "number",
+          "image": "string",
+          "status": "active | inactive | removed"
+        }
+      }
+    },
+    {
+      "name": "Get Car Listing by ID",
+      "method": "GET",
+      "url": "/api/v1/cars/list/:id",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "response": {
+        "carListing": {
+          "vehicleName": "string",
+          "make": "string",
+          "model": "string",
+          "description": "string",
+          "price": "number",
+          "image": "string"
+        }
+      }
+    },
+    {
+      "name": "Get Cars by Driver",
+      "method": "GET",
+      "url": "/api/v1/cars/driver/:driverId/cars",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      },
+      "response": {
+        "cars": [
+          {
+            "vehicleName": "string",
+            "make": "string",
+            "model": "string",
+            "description": "string",
+            "price": "number",
+            "image": "string"
+          }
+        ]
+      }
+    }
+  ]
+}

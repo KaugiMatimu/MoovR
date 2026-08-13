@@ -1,0 +1,74 @@
+[
+  {
+    "name": "Rent a Car",
+    "method": "POST",
+    "url": "//api/v1/rent/rent",
+    "headers": {
+      "Authorization": "Bearer <your_token_here>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "carId": "car_id_here",
+      "deliveryLocation": "123 Main St",
+      "rentStartDate": "2023-10-01T00:00:00.000Z",
+      "rentEndDate": "2023-10-07T00:00:00.000Z"
+    },
+    "response": {
+      "message": "Car rented successfully",
+      "carListing": {
+        "_id": "car_id_here",
+        "isAvailable": false,
+        "rentalPeriods": [
+          {
+            "startDate": "2023-10-01T00:00:00.000Z",
+            "endDate": "2023-10-07T00:00:00.000Z",
+            "user": "user_id_here",
+            "deliveryLocation": "123 Main St"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "Get Rental Periods for a Car",
+    "method": "GET",
+    "url": "/api/v1/rent/rental-periods/:carId",
+    "headers": {
+      "Authorization": "Bearer <your_token_here>"
+    },
+    "response": {
+      "rentalPeriods": [
+        {
+          "startDate": "2023-10-01T00:00:00.000Z",
+          "endDate": "2023-10-07T00:00:00.000Z",
+          "user": "user_id_here",
+          "deliveryLocation": "123 Main St"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Get Rented Cars of a Specific Driver",
+    "method": "GET",
+    "url": "/api/v1/rent/rented-cars-by-driver/:driverId",
+    "headers": {
+      "Authorization": "Bearer <your_token_here>"
+    },
+    "response": {
+      "rentedCars": [
+        {
+          "_id": "car_id_here",
+          "isAvailable": false,
+          "rentalPeriods": [
+            {
+              "startDate": "2023-10-01T00:00:00.000Z",
+              "endDate": "2023-10-07T00:00:00.000Z",
+              "user": "driver_id_here",
+              "deliveryLocation": "123 Main St"
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

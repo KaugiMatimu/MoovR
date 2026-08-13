@@ -1,0 +1,36 @@
+# Root gitignore for the monorepo
+
+# Node modules
+node_modules/
+
+# Environment files
+.env
+*.env
+**/.env
+moovr-backend/moovr-73876-firebase-adminsdk-fbsvc-911ab2686e.json
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Build output
+dist/
+build/
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel/
+
+# Temporary
+*.tmp
+*.temp
+*.swp
+*.swo

@@ -1,0 +1,151 @@
+[
+  {
+    "name": "Book a Driver",
+    "method": "POST",
+    "url": "/api/v1/bookings/book",
+    "headers": {
+      "Authorization": "Bearer <your_token_here>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "driverId": "driver_id_here",
+      "location": "123 Main St",
+      "carName": "Toyota Camry",
+      "carNumber": "ABC123",
+      "startTime": 8, // Start time in hours (0 to 24)
+      "endTime": 12, // End time in hours (0 to 24)
+      "paymentMethod": "credit_card"
+    },
+    "response": {
+      "message": "Driver booked successfully",
+      "booking": {
+        "_id": "booking_id_here",
+        "user": "user_id_here",
+        "driver": "driver_id_here",
+        "location": "123 Main St",
+        "carName": "Toyota Camry",
+        "carNumber": "ABC123",
+        "startTime": "2023-10-01T08:00:00.000Z",
+        "endTime": "2023-10-01T12:00:00.000Z",
+        "totalPrice": 200,
+        "paymentMethod": "credit_card",
+        "status": "pending"
+      }
+    }
+  },
+  {
+    "name": "Get Bookings for a User",
+    "method": "GET",
+    "url": "/api/v1/bookings/user-bookings",
+    "headers": {
+      "Authorization": "Bearer <your_token_here>"
+    },
+    "response": {
+      "bookings": [
+        {
+          "_id": "booking_id_here",
+          "user": {
+            "_id": "user_id_here"
+            // ...other user details...
+          },
+          "driver": "driver_id_here",
+          "location": "123 Main St",
+          "carName": "Toyota Camry",
+          "carNumber": "ABC123",
+          "startTime": 8,
+          "endTime": 12,
+          "totalPrice": 200,
+          "paymentMethod": "credit_card",
+          "status": "pending"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Get Bookings for a Driver",
+    "method": "GET",
+    "url": "/api/v1/bookings/driver-bookings",
+    "headers": {
+      "Authorization": "Bearer <your_token_here>"
+    },
+    "response": {
+      "bookings": [
+        {
+          "_id": "booking_id_here",
+          "user": {
+            "_id": "user_id_here"
+            // ...other user details...
+          },
+          "driver": "driver_id_here",
+          "location": "123 Main St",
+          "carName": "Toyota Camry",
+          "carNumber": "ABC123",
+          "startTime": 8,
+          "endTime": 12,
+          "totalPrice": 200,
+          "paymentMethod": "credit_card",
+          "status": "pending"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Get Booking by ID",
+    "method": "GET",
+    "url": "/api/v1/bookings/booking/:booking_id_here",
+    "headers": {
+      "Authorization": "Bearer <your_token_here>"
+    },
+    "response": {
+      "bookings": [
+        {
+          "_id": "booking_id_here",
+          "user": {
+            "_id": "user_id_here"
+            // ...other user details...
+          },
+          "driver": "driver_id_here",
+          "location": "123 Main St",
+          "carName": "Toyota Camry",
+          "carNumber": "ABC123",
+          "startTime": 8,
+          "endTime": 12,
+          "totalPrice": 200,
+          "paymentMethod": "credit_card",
+          "status": "pending"
+        }
+      ]
+    }
+  },
+  {
+    "name": "To change the status (COMPLETE / CANCEL)",
+    "method": "PUT",
+    "url": "/api/v1/bookings/booking/:booking_id_here/status",
+    "headers": {
+      "Authorization": "Bearer <your_token_here>"
+    },
+    "body": {
+      "status" : "cancelled" || "completed"
+    },
+    "response": {
+      "bookings": [
+        {
+          "_id": "booking_id_here",
+          "user": {
+            "_id": "user_id_here"
+            // ...other user details...
+          },
+          "driver": "driver_id_here",
+          "location": "123 Main St",
+          "carName": "Toyota Camry",
+          "carNumber": "ABC123",
+          "startTime": 8,
+          "endTime": 12,
+          "totalPrice": 200,
+          "paymentMethod": "credit_card",
+          "status": "pending"
+        }
+      ]
+    }
+  }
+]
