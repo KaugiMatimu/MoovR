@@ -7,7 +7,15 @@ module.exports = {
   init: (server) => {
     io = socketIo(server, {
       cors: {
-        origin: ["http://localhost:5173", "http://localhost:5175", "http://localhost:3000", "http://localhost:3001"], // Allow your frontend origins
+        origin: [
+          "https://moovr.taxi",
+          "https://www.moovr.taxi",
+          "https://admin.moovr.taxi",
+          "http://localhost:5173",
+          "http://localhost:5175",
+          "http://localhost:3000",
+          "http://localhost:3001"
+        ], // Allow your frontend origins
         methods: ["GET", "POST"],
         credentials: true,
       },

@@ -104,6 +104,9 @@ init(server);
 
 // Enable CORS for frontend and socket origins
 const allowedOrigins = [
+  "https://moovr.taxi",
+  "https://www.moovr.taxi",
+  "https://admin.moovr.taxi",
   "http://localhost:5173",
   "http://localhost:5175",
   "http://localhost:3000",
