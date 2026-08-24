@@ -1,0 +1,10 @@
+AddType application/javascript .js .mjs
+AddType text/css .css
+
+RewriteEngine On
+RewriteBase /
+
+# Keep real files and directories available, then route SPA paths to React.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]

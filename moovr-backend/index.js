@@ -108,7 +108,7 @@ const allowedOrigins = [
   "https://www.moovr.taxi",
   "https://admin.moovr.taxi",
   "http://localhost:5173",
-  "http://localhost:5175",
+  "http://localhost:5175",  
   "http://localhost:3000",
   "http://localhost:3001",
   "https://moovr-admin.vercel.app", // Added common production origin pattern
