@@ -155,9 +155,6 @@ server {
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
         
-        # Keep-alive
-        proxy_set_header Connection "";
-        
         # Buffering
         proxy_buffering off;
     }

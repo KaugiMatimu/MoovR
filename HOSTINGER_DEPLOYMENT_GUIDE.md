@@ -346,7 +346,7 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         
-        # Increase timeouts for WebSocket
+        # Keep the WebSocket connection open
         proxy_read_timeout 86400;
         proxy_send_timeout 86400;
     }
