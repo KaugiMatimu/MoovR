@@ -4,11 +4,11 @@ import io from "socket.io-client";
 // Create the context
 const SocketContext = createContext();
 
-// Your server URL where Socket.io is running
+// Use the deployed API when production variables were omitted from the build.
 const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL ||
   (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, "") : null) ||
-  "http://localhost:5000";
+  (import.meta.env.PROD ? "https://api.moovr.taxi" : "http://localhost:5000");
 
 export const useSocket = () => {
   return useContext(SocketContext);

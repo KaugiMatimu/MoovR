@@ -20,8 +20,8 @@ const TrackPackage = () => {
   const directionsRendererRef = useRef(null);
 
   useEffect(() => {
-    // Get socket server URL from BaseURL (remove /api/v1)
-    const socketUrl = BaseURL.split("/api")[0];
+    // Use the same production socket host as the shared provider.
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || BaseURL.split("/api")[0];
     socketRef.current = io(socketUrl, {
       transports: ["websocket", "polling"],
       withCredentials: true,

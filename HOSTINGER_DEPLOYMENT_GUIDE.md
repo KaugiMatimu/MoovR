@@ -101,6 +101,10 @@ VITE_FIREBASE_AUTH_DOMAIN=moovr-73876.firebaseapp.com
 VITE_FIREBASE_STORAGE_BUCKET=moovr-73876.firebasestorage.app
 ```
 
+For Coolify, add these `VITE_*` variables to the frontend application's
+Environment Variables before clicking Redeploy. They must be available during
+the `npm run build` step; adding them after the build does not update a Vite bundle.
+
 **Admin Panel .env.local** (`admin-panel/.env.local`):
 ```env
 NEXT_PUBLIC_API_URL=https://api.yourdomain.com
@@ -199,6 +203,8 @@ cd /home/username/odare/moovr-web
 npm install
 npm run build
 # This creates a "dist" folder with optimized files
+# Upload the contents of dist/ to public_html/ (not moovr-web/ or src/)
+# dist/.htaccess is included for Apache MIME types and React Router fallback
 ```
 
 ### 4.2 Setup Nginx as Reverse Proxy

@@ -52,7 +52,8 @@ pm2 start ecosystem.config.js
 cd /home/username/odare/moovr-web
 npm install
 npm run build
-# Files in /dist - Nginx serves them
+# Upload the contents of /dist to Hostinger public_html
+# Do not upload moovr-web/index.html or the src/ directory
 ```
 
 ### Deploy Admin

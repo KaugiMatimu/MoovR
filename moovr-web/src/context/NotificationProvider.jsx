@@ -18,7 +18,7 @@ export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const API_URL = "http://localhost:5000/api/v1/notifications";
+  const API_URL = `${import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://api.moovr.taxi/api/v1" : "http://localhost:5000/api/v1")}/notifications`;
 
   const getAuthHeaders = () => {
     const userData = JSON.parse(localStorage.getItem("userData") || "{}");
