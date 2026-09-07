@@ -14,6 +14,7 @@ const {
 const { protect } = require("../middleware/authMiddleware");
 const { default: axios } = require("axios");
 const stripe = require("../utils/stripe");
+const frontendUrl = require("../utils/frontendUrl");
 
 router.post("/create-payment-intent", async (req, res) => {
   try {
@@ -40,8 +41,8 @@ router.post("/create-payment-intent", async (req, res) => {
         },
       ],
       mode: "payment",
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/wallet/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/wallet`,
+      success_url: `${frontendUrl}/wallet/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${frontendUrl}/wallet`,
       metadata: {
         userId: userId,
       },

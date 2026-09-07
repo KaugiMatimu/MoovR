@@ -1,6 +1,7 @@
 const CarListing = require("../models/carListing");
 const User = require("../models/User");
 const paystack = require("../utils/paystack");
+const frontendUrl = require("../utils/frontendUrl");
 
 const syncCarAvailability = (carListing) => {
   const hasActiveRental = (carListing.rentalPeriods || []).some((period) =>
@@ -82,7 +83,7 @@ exports.rentCar = async (req, res) => {
             rentEndDate: rentEndDate,
             deliveryLocation: deliveryLocation,
           },
-          callback_url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/rent/car/booked`,
+          callback_url: `${frontendUrl}/rent/car/booked`,
         });
 
         return res.status(200).json({

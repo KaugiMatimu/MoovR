@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import PhoneInput from 'react-phone-number-input';
-import 'react-phone-number-input/style.css';
+import { PhoneInput } from "react-international-phone";
+import "react-international-phone/style.css";
 import { auth, googleProvider, sendOtp } from "../firebase";
 import { signInWithPopup } from "firebase/auth";
 import toast from "react-hot-toast";
@@ -74,12 +74,13 @@ const Login = () => {
               <h2 className="text-2xl font-bold mb-4">Enter your mobile number</h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <PhoneInput
-                  international
-                  defaultCountry="NG"
+                  defaultCountry="ng"
                   value={phoneNumber}
                   onChange={handlePhoneNumberChange}
-                  className="w-full border-2 border-gray-200 rounded-full p-2 focus:outline-none hover:bg-none"
-                  placeholder="Enter phone number"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                  inputClassName="!bg-transparent !border-none !w-full !h-10 !text-base focus:!ring-0"
+                  buttonClassName="!bg-transparent !border-none"
+                  placeholder="Phone number"
                 />
                 <button
                   type="submit"

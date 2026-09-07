@@ -9,6 +9,7 @@ const { notifyUser } = require("../utils/notificationService");
 const Review = require("../models/Review");
 const Share = require("../models/Share");
 const crypto = require("crypto");
+const frontendUrl = require("../utils/frontendUrl");
 
 const SEARCH_RADII = [2000, 3000, 5000];
 const DRIVER_FIELDS = "firstName lastName profilePicture carCategory serviceType ratingAverage availability location";
@@ -254,7 +255,6 @@ exports.createShareToken = async (req, res) => {
     const newShare = new Share({ ride: ride._id, token, createdBy: userId, expiresAt });
     await newShare.save();
 
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     const shareLink = `${frontendUrl}/share/${token}`;
 
     return res.status(201).json({ message: "Share token created", shareLink, token, expiresAt });
@@ -456,7 +456,6 @@ exports.processPayment = async (req, res) => {
     }
 
     ride.paymentMethod = paymentMethod || ride.paymentMethod;
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     let paymentData = {};
 
     try {
@@ -497,7 +496,6 @@ exports.processPayment = async (req, res) => {
         ride.status = "completed";
       } else if (ride.paymentMethod === "Stripe" || ride.paymentMethod === "Debit Card" || ride.paymentMethod === "Google Pay") {
         const fareAmount = Math.round((ride.fare || 0) * 100);
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const encodedDriverName = encodeURIComponent(`${ride.driver?.firstName || ""} ${ride.driver?.lastName || ""}`.trim());
         const driverIdParam = ride.driver ? `&driverId=${ride.driver.toString()}` : "";
         const driverNameParam = encodedDriverName ? `&driverName=${encodedDriverName}` : "";
@@ -648,7 +646,6 @@ exports.updateRideStatus = async (req, res) => {
           ride.paymentStatus = "paid";
         } else if (["Stripe", "Debit Card", "Google Pay"].includes(ride.paymentMethod)) {
           const fareAmount = Math.round((ride.fare || 0) * 100);
-          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
           const encodedDriverName = encodeURIComponent(`${ride.driver?.firstName || ""} ${ride.driver?.lastName || ""}`.trim());
           const driverIdParam = ride.driver ? `&driverId=${ride.driver.toString()}` : "";
           const driverNameParam = encodedDriverName ? `&driverName=${encodedDriverName}` : "";
@@ -684,7 +681,6 @@ exports.updateRideStatus = async (req, res) => {
           ride.paymentStatus = "pending";
         } else if (ride.paymentMethod === "Paystack") {
           const fareAmount = Math.round((ride.fare || 0) * 100);
-          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
           const encodedDriverName = encodeURIComponent(`${ride.driver?.firstName || ""} ${ride.driver?.lastName || ""}`.trim());
           const driverIdParam = ride.driver ? `&driverId=${ride.driver.toString()}` : "";
           const driverNameParam = encodedDriverName ? `&driverName=${encodedDriverName}` : "";

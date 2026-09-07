@@ -97,7 +97,10 @@ const parseStoredUser = () => {
 
 const fetchCurrentUser = async () => {
   try {
-    const response = await axios.get("/auth/get-user");
+    const token = getAuthToken();
+    const response = await axios.get(`${BaseURL}/auth/get-user`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     const user = response.data?.user;
     if (user) {
       localStorage.setItem("userData", JSON.stringify(user));
@@ -535,16 +538,11 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchListings = async () => {
       try {
-        let userData = parseStoredUser();
+        let userData = await fetchCurrentUser();
         let driverId = userData?._id || userData?.id;
 
         if (!driverId) {
-          userData = await fetchCurrentUser();
-          driverId = userData?._id || userData?.id;
-        }
-
-        if (!driverId) {
-          console.error("Driver ID missing from stored user data for listings fetch");
+          console.error("Driver ID missing from authenticated user response");
           setTotalListings(0);
           setListingsData([]);
           return;

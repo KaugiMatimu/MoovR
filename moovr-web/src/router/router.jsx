@@ -99,6 +99,7 @@ import PaymentSuccess from "../pages/user-panel/Wallet-success.jsx";
 import DriverPaymentSuccess from "../pages/driver-panel/Wallet-success.jsx";
 import LiveLocationRecipientScreen from "../pages/user-panel/live-location-recipient";
 import RideShare from "../pages/share/ride-share";
+import { BaseURL } from "../utils/BaseURL";
 
 
 
@@ -168,6 +169,58 @@ export const ProtectedDriverRoute = ({ element }) => {
   return <Navigate to="/choose" state={{ from: location, role: "driver" }} replace />;
 };
 
+export const ApprovedDriverRoute = ({ element }) => {
+  const [status, setStatus] = useState("loading");
+  const location = useLocation();
+
+  useEffect(() => {
+    let active = true;
+    const token = Cookies.get("token") || localStorage.getItem("token");
+    const role = Cookies.get("role") || localStorage.getItem("role");
+
+    if (!token || role !== "driver") {
+      setStatus("unauthorized");
+      return () => { active = false; };
+    }
+
+    fetch(`${BaseURL}/auth/get-user`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load driver status");
+        return response.json();
+      })
+      .then(({ user }) => {
+        if (!active) return;
+        const hasRequiredSetup = Boolean(
+          user?.firstName &&
+          user?.lastName &&
+          user?.phone &&
+          user?.documents?.drivingLicense &&
+          user?.documents?.proofOfResidency &&
+          user?.documents?.vehicleRegistrationBook &&
+          user?.documents?.vehicleInsurance &&
+          user?.termsAccepted
+        );
+        const isApproved = user?.verificationStatus === "approved" && user?.isVerified === true;
+        localStorage.setItem("userData", JSON.stringify(user));
+        setStatus(hasRequiredSetup && isApproved ? "approved" : "setup-required");
+      })
+      .catch(() => {
+        if (active) setStatus("setup-required");
+      });
+
+    return () => { active = false; };
+  }, [location.pathname]);
+
+  if (status === "loading") return null;
+  if (status === "approved") return element;
+  if (status === "unauthorized") {
+    return <Navigate to="/choose" state={{ from: location, role: "driver" }} replace />;
+  }
+  return <Navigate to="/d/" replace />;
+};
+
 // PUBLIC ROUTE (Redirects if already logged in)
 export const PublicRoute = ({ element }) => {
   const location = useLocation();
@@ -178,7 +231,7 @@ export const PublicRoute = ({ element }) => {
   const hasValidRole = role && role !== "undefined" && role !== "null";
 
   if (hasValidToken && hasValidRole) {
-    if (role === "driver") return <Navigate to="/d/dashboard" replace />;
+    if (role === "driver") return <Navigate to="/d/" replace />;
     return <Navigate to="/ride" replace />;
   }
 
@@ -291,7 +344,7 @@ const App = () => {
           
           <Route path="/d/location" element={<ProtectedDriverRoute element={<Go />} />} />
           <Route path="/d/"   element={<ProtectedDriverRoute element={<Welcome />} />}/>
-          <Route path="/d/dashboard" element={<ProtectedDriverRoute element={<Dashboard />} />} />
+          <Route path="/d/dashboard" element={<ApprovedDriverRoute element={<Dashboard />} />} />
           <Route path="/driver/confirmation/:driverId"  element={<ProtectedDriverRoute element={<DriverConfirmation />} />}/>
           {/* after otp verified driver come here  */}
           <Route path="/driver/start"  element={<ProtectedDriverRoute element={<DriverStart />} />} />

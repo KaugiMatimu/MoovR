@@ -61,13 +61,16 @@ exports.firebaseVerify = async (req, res) => {
         email,
         firebaseUid: uid,
         role: role || "user",
-        isVerified: true,
+        isVerified: role === "driver" ? false : true,
+        verificationStatus: role === "driver" ? "pending" : "approved",
         firstName: firstName || undefined,
         lastName: lastName || undefined,
       });
       await user.save();
     } else {
-      user.isVerified = true;
+      if (user.role !== "driver" && role !== "driver") {
+        user.isVerified = true;
+      }
       if (email && !user.email) user.email = email;
       if (phone && !user.phone) user.phone = phone;
       if (!user.firebaseUid) user.firebaseUid = uid;
@@ -150,7 +153,8 @@ exports.googleLogin = async (req, res) => {
         lastName: name ? name.split(' ').slice(1).join(' ') : '',
         profilePicture: picture,
         role: role || "user",
-        isVerified: true
+        isVerified: role === "driver" ? false : true,
+        verificationStatus: role === "driver" ? "pending" : "approved"
       });
       await user.save();
       console.log("New user created via Google:", email);

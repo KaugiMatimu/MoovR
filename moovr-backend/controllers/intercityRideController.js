@@ -6,6 +6,7 @@ const paystack = require("../utils/paystack");
 const { getIo } = require("../socket");
 const { notifyUser } = require("../utils/notificationService");
 const { calculateFare } = require("../utils/rateCalculator");
+const frontendUrl = require("../utils/frontendUrl");
 
 // Create Intercity Ride
 exports.createIntercityRide = async (req, res) => {
@@ -191,7 +192,6 @@ exports.updateRideStatus = async (req, res) => {
              ride.paymentStatus = "paid";
           } else {
             try {
-              const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
               const session = await stripe.checkout.sessions.create({
                 payment_method_types: ["card"],
                 line_items: [

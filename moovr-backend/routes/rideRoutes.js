@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const rideController = require("../controllers/rideController");
-const { protect, isDriver, allowDriver } = require("../middleware/authMiddleware");
+const { protect, isDriver, allowDriver, allowApprovedDriver } = require("../middleware/authMiddleware");
 
 // Create Ride
 router.post("/create", protect, rideController.createRide);
@@ -34,7 +34,7 @@ router.get("/status/:rideId", protect, rideController.getRideStatus);
 router.post("/process-payment/:rideId", protect, rideController.processPayment);
 
 // GET Rides by driver
-router.get("/driver", protect, isDriver, rideController.getDriverRides);
+router.get("/driver", protect, allowApprovedDriver, rideController.getDriverRides);
 
 // Create a share token for a ride (driver or passenger)
 router.post("/share/:rideId", protect, rideController.createShareToken);

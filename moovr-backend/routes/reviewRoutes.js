@@ -4,7 +4,7 @@ const {
   addReview,
   getDriverReviews,
 } = require("../controllers/reviewController");
-const { protect } = require("../middleware/authMiddleware");
+const { protect, allowApprovedDriver } = require("../middleware/authMiddleware");
 
 // Add a Review
 router.post("/reviews", protect, addReview);
@@ -13,6 +13,6 @@ router.post("/reviews", protect, addReview);
 // router.get("/reviews/:driverId", protect, getDriverReviews);
 
 // Get Reviews for a Driver
-router.get("/reviews", protect, getDriverReviews);
+router.get("/reviews", protect, allowApprovedDriver, getDriverReviews);
 
 module.exports = router;

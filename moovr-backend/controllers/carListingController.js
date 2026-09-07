@@ -249,6 +249,10 @@ exports.getCarListing = async (req, res) => {
 exports.getCarsByDriver = async (req, res) => {
   const { id } = req.params;
 
+  if (req.user && id !== req.user._id.toString()) {
+    return res.status(403).json({ message: "You can only view your own listings" });
+  }
+
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: "Invalid driver ID" });
   }

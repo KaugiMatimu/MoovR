@@ -64,6 +64,35 @@ const isDriver = (req, res, next) => {
   next();
 };
 
+const allowApprovedDriver = (req, res, next) => {
+  const user = req.user;
+
+  if (user.role !== "driver") {
+    return res.status(403).json({ message: "Access denied, not a driver" });
+  }
+
+  const hasRequiredSetup = Boolean(
+    user.firstName &&
+    user.lastName &&
+    user.phone &&
+    user.documents?.drivingLicense &&
+    user.documents?.proofOfResidency &&
+    user.documents?.vehicleRegistrationBook &&
+    user.documents?.vehicleInsurance &&
+    user.termsAccepted
+  );
+
+  if (!hasRequiredSetup || user.verificationStatus !== "approved" || user.isVerified !== true) {
+    return res.status(403).json({
+      message: "Driver setup must be completed and approved by an administrator",
+      setupRequired: !hasRequiredSetup,
+      verificationStatus: user.verificationStatus || "pending",
+    });
+  }
+
+  next();
+};
+
 // Middleware to allow only verified drivers
 const allowDriver = (req, res, next) => {
   const user = req.user;
@@ -96,4 +125,4 @@ const allowAdmin = (req, res, next) => {
   next(); // Proceed to the next middleware or route handler
 };
 
-module.exports = { protect, isDriver, allowDriver, allowAdmin };
+module.exports = { protect, isDriver, allowDriver, allowApprovedDriver, allowAdmin };

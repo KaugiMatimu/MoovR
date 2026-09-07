@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { protect, isDriver, allowDriver } = require("../middleware/authMiddleware");
+const { protect, isDriver, allowDriver, allowApprovedDriver } = require("../middleware/authMiddleware");
 const {
   bookDriver,
   getUserBookings,
@@ -22,7 +22,7 @@ router.post("/book", protect, bookDriver);
 router.get("/user-bookings", protect, getUserBookings);
 
 // Get Bookings for a Driver
-router.get("/driver-bookings", protect, isDriver, getDriverBookings);
+router.get("/driver-bookings", protect, allowApprovedDriver, getDriverBookings);
 
 // Get Booking by ID
 router.get("/booking/:id", protect, getBookingById);
@@ -31,7 +31,7 @@ router.get("/booking/:id", protect, getBookingById);
 router.get("/past-user-bookings", protect, getPastUserBookings);
 
 // Get Past Bookings for a Driver
-router.get("/past-driver-bookings", protect, isDriver, getPastDriverBookings);
+router.get("/past-driver-bookings", protect, allowApprovedDriver, getPastDriverBookings);
 
 // Update Booking Status
 router.put("/booking/:id/status", protect, isDriver, updateBookingStatus);

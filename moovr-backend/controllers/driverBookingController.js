@@ -4,6 +4,7 @@ const Wallet = require("../models/Wallet");
 const stripe = require("../utils/stripe");
 const paystack = require("../utils/paystack");
 const { notifyUser } = require("../utils/notificationService");
+const frontendUrl = require("../utils/frontendUrl");
 
 // Book a Driver
 exports.bookDriver = async (req, res) => {
@@ -248,7 +249,6 @@ exports.updateBookingStatus = async (req, res) => {
              booking.paymentStatus = "paid";
           } else {
             try {
-              const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
               const session = await stripe.checkout.sessions.create({
                 payment_method_types: ["card"],
                 line_items: [

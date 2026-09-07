@@ -15,9 +15,7 @@ const Login = () => {
   const location = useLocation();
   const role = location.state?.role || null; // fallback to null if not provided
 
-  const [countryCode, setCountryCode] = useState("+92"); // Default country code
-  const [userNumber, setUserNumber] = useState("");
-  const [fullPhone, setFullPhone] = useState("");
+  const [phone, setPhone] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -99,24 +97,11 @@ const Login = () => {
     }
   };
 
-  const handleCountryChange = (value) => {
-    const match = value.match(/^\+\d+/);
-    const code = match ? match[0] : "+234";
-    setCountryCode(code);
-    setFullPhone(code + userNumber);
-  };
-
-  const handleUserNumberChange = (e) => {
-    const number = e.target.value.replace(/\D/g, "");
-    setUserNumber(number);
-    setFullPhone(countryCode + number);
-  };
-
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
-    console.log("your full phone number is :", fullPhone);
+    console.log("your full phone number is :", phone);
 
-    if (userNumber.length < 6) {
+    if (!phone) {
       toast.error("Please enter a valid phone number");
       return;
     }
@@ -128,7 +113,7 @@ const Login = () => {
         throw new Error("Unable to initialize reCAPTCHA. Please refresh the page and try again.");
       }
 
-      const confirmationResult = await signInWithPhoneNumber(auth, fullPhone, appVerifier);
+      const confirmationResult = await signInWithPhoneNumber(auth, phone, appVerifier);
       
       // Store confirmationResult globally to access it in the verification page
       window.confirmationResult = confirmationResult;
@@ -137,7 +122,7 @@ const Login = () => {
       
       // Merge with existing userData (like Google info) if it exists
       const existingData = JSON.parse(localStorage.getItem("userData") || "{}");
-      localStorage.setItem("userData", JSON.stringify({ ...existingData, phone: fullPhone }));
+      localStorage.setItem("userData", JSON.stringify({ ...existingData, phone }));
 
       // ✅ Navigate with role passed in state
       navigate(role === "driver" ? "/d/verification" : "/verification", {
@@ -184,53 +169,15 @@ const Login = () => {
           <div id="recaptcha-container-user-login"></div>
           <h2 className="text-2xl font-bold mb-4">Enter your mobile number</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex items-center bg-gray-50 rounded-full px-3 py-2 space-x-2">
-              <div className="relative inline-flex">
-                <PhoneInput
-                  defaultCountry="ng"
-                  preferredCountries={["ng", "us", "gb"]}
-                  value={countryCode}
-                  onChange={handleCountryChange}
-                  inputClassName="hidden"
-                  countrySelectorStyleProps={{
-                    buttonClassName: `
-                      !p-0 !bg-transparent !border-none !shadow-none
-                      !h-10 !w-auto !px-2
-                      flex items-center justify-center gap-1
-                      focus:!ring-0
-                      group
-                    `,
-                    flagClassName: `
-                      !w-6 !h-6 rounded-full object-cover
-                      border border-gray-100 shadow-sm
-                    `,
-                    dropdownArrowClassName: `
-                      !ml-0 !text-gray-500 !w-4 
-                      transition-transform duration-200
-                      group-hover:!text-gray-700
-                      group-data-[active=true]:rotate-180
-                    `,
-                    dropdownStyleProps: {
-                      className: `
-                        !mt-2 !left-0 !min-w-[220px]
-                        !rounded-xl !shadow-lg !border !border-gray-200
-                        !py-2
-                      `,
-                    },
-                  }}
-                />
-              </div>
-              <div className="text-base text-gray-700 font-medium h-12 flex items-center px-2">
-                {countryCode}
-              </div>
-              <input
-                type="tel"
-                value={userNumber}
-                onChange={handleUserNumberChange}
-                className="flex-1 bg-transparent focus:outline-none h-12 text-base placeholder:text-gray-400"
-                placeholder="Phone number"
-              />
-            </div>
+            <PhoneInput
+              defaultCountry="ng"
+              value={phone}
+              onChange={(value) => setPhone(value)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+              inputClassName="!bg-transparent !border-none !w-full !h-10 !text-base focus:!ring-0"
+              buttonClassName="!bg-transparent !border-none"
+              placeholder="Phone number"
+            />
 
             <button
               type="submit"

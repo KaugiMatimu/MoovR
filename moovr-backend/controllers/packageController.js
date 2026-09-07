@@ -7,6 +7,7 @@ const { getIo } = require("../socket");
 const axios = require("axios");
 const { notifyUser } = require("../utils/notificationService");
 const { debitWallet } = require("./walletController");
+const frontendUrl = require("../utils/frontendUrl");
 
 // Create Package
 exports.createPackage = async (req, res) => {
@@ -281,7 +282,6 @@ exports.updatePackageStatus = async (req, res) => {
              pkg.paymentStatus = "paid";
           } else {
             try {
-              const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
               const session = await stripe.checkout.sessions.create({
                 payment_method_types: ["card"],
                 line_items: [
@@ -435,7 +435,6 @@ exports.processPackagePayment = async (req, res) => {
     }
 
     pkg.paymentMethod = paymentMethod || pkg.paymentMethod;
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     let paymentData = {};
 
     try {

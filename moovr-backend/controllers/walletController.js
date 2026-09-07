@@ -2,6 +2,7 @@ const User = require("../models/User");
 const Wallet = require("../models/Wallet");
 const stripe = require("../utils/stripe");
 const paystack = require("../utils/paystack");
+const frontendUrl = require("../utils/frontendUrl");
 
 // Initialize Paystack Payment
 exports.initializePayment = async (req, res) => {
@@ -21,7 +22,7 @@ exports.initializePayment = async (req, res) => {
     const paystackResponse = await paystack.transaction.initialize({
       email: user.email,
       amount: amount * 100, // Amount in kobo
-      callback_url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/wallet/success`,
+      callback_url: `${frontendUrl}/wallet/success`,
       metadata: {
         userId: userId.toString(),
       },

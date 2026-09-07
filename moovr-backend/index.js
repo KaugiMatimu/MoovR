@@ -13,6 +13,10 @@ const admin = require("firebase-admin");
 // Load environment variables from .env file
 dotenv.config({ path: path.join(__dirname, ".env") });
 
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET is required. Configure it in the backend environment before starting the server.");
+}
+
 // Initialize Firebase Admin
 const firebaseAdminConfig = (() => {
   console.log("Initializing Firebase Admin...");

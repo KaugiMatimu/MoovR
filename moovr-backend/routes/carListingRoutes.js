@@ -17,7 +17,7 @@ const {
   deleteCarListing,
 } = require("../controllers/carListingController");
 
-const { protect, isDriver, allowDriver } = require("../middleware/authMiddleware");
+const { protect, isDriver, allowDriver, allowApprovedDriver } = require("../middleware/authMiddleware");
 const { upload } = require("../utils/firebaseStorage"); // Import the upload middleware
 
 // Create Car Listing
@@ -45,8 +45,8 @@ router.get("/list", getCarListings);
 router.get("/list/:id", protect, getCarListing);
 
 // Get Cars by Driver
-router.get("/driver/:id/cars", getCarsByDriver);
-router.get("/driver/:id", getCarsByDriver); // Fallback / alias
+router.get("/driver/:id/cars", protect, allowApprovedDriver, getCarsByDriver);
+router.get("/driver/:id", protect, allowApprovedDriver, getCarsByDriver); // Fallback / alias
 
 // Update Car Listing Status
 router.put("/list/:id/status", protect, isDriver, updateCarListingStatus);
