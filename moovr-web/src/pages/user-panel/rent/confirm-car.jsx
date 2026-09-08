@@ -30,34 +30,6 @@ const ConfirmCar = () => {
   const token = localStorage.getItem("token");
 
   useEffect(() => {
-    const draftBooking = {
-      carId: id,
-      carName: displayCar?.vehicleName || displayCar?.make || "Car",
-      vehicleName: displayCar?.vehicleName || displayCar?.make || "Car",
-      carImage: displayCar?.image || displayCar?.carImage || "/images/BMW.png",
-      image: displayCar?.image || displayCar?.carImage || "/images/BMW.png",
-      deliveryLocation,
-      pickupLocation: deliveryLocation,
-      location: deliveryLocation,
-      rentStartDate,
-      rentEndDate,
-      paymentMethod: selectedPaymentMethod,
-      price: displayCar?.price,
-      description: displayCar?.description,
-      make: displayCar?.make,
-      model: displayCar?.model,
-    };
-
-    if (deliveryLocation || rentStartDate || rentEndDate || selectedPaymentMethod || displayCar) {
-      const snapshot = JSON.stringify(draftBooking);
-      localStorage.setItem("latestRentDetails", snapshot);
-      sessionStorage.setItem("latestRentDetails", snapshot);
-      localStorage.setItem("selectedRentCar", JSON.stringify(displayCar || {}));
-      sessionStorage.setItem("selectedRentCar", JSON.stringify(displayCar || {}));
-    }
-  }, [id, displayCar, deliveryLocation, rentStartDate, rentEndDate, selectedPaymentMethod]);
-
-  useEffect(() => {
     const fetchCar = async () => {
       try {
         const res = await axios.get(`${BaseURL}/cars/list/${id}`, {
@@ -120,40 +92,6 @@ const ConfirmCar = () => {
       return;
     }
 
-    const isAlreadyHired = (displayCar?.rentalPeriods || []).some((period) =>
-      ["pending", "approved"].includes(period.status)
-    ) || displayCar?.isAvailable === false;
-
-    if (isAlreadyHired) {
-      toast.error("This car is currently hired and cannot be rented again until it has been returned.");
-      navigate(-1);
-      return;
-    }
-
-    const rentalDetails = {
-      carId: id,
-      carName: displayCar?.vehicleName || displayCar?.make || "Car",
-      vehicleName: displayCar?.vehicleName || displayCar?.make || "Car",
-      carImage: displayCar?.image || displayCar?.carImage || "/images/BMW.png",
-      image: displayCar?.image || displayCar?.carImage || "/images/BMW.png",
-      deliveryLocation,
-      pickupLocation: deliveryLocation,
-      location: deliveryLocation,
-      rentStartDate,
-      rentEndDate,
-      paymentMethod: selectedPaymentMethod,
-      price: displayCar?.price,
-      description: displayCar?.description,
-      make: displayCar?.make,
-      model: displayCar?.model,
-    };
-
-    const bookingSnapshot = JSON.stringify(rentalDetails);
-    localStorage.setItem("latestRentDetails", bookingSnapshot);
-    sessionStorage.setItem("latestRentDetails", bookingSnapshot);
-    localStorage.setItem("selectedRentCar", JSON.stringify(displayCar || {}));
-    sessionStorage.setItem("selectedRentCar", JSON.stringify(displayCar || {}));
-
     setLoading(true);
 
     try {
@@ -186,30 +124,21 @@ const ConfirmCar = () => {
         return;
       }
 
-      if (
-        response.data.message &&
-        response.data.message.toLowerCase().includes("awaiting admin approval")
-      ) {
-        toast.success("Rent request submitted. Awaiting admin approval.");
+      if (response.data.message === "Car rented successfully") {
+        toast.success("Car rented successfully!");
         navigate("/rent/car/booked", {
-          replace: true,
           state: {
             rental: {
-              ...rentalDetails,
-              status: "pending",
-            },
-          },
-        });
-      } else if (response.data.rentalRequest) {
-        toast.success("Rent request submitted. Awaiting admin approval.");
-        navigate("/rent/car/booked", {
-          replace: true,
-          state: {
-            rental: {
-              ...rentalDetails,
-              status: "pending",
-            },
-          },
+              carId: id,
+              carName: displayCar.vehicleName || displayCar.make,
+              carImage: displayCar.image,
+              deliveryLocation,
+              rentStartDate,
+              rentEndDate,
+              paymentMethod: selectedPaymentMethod,
+              price: displayCar.price,
+            }
+          }
         });
       } else {
         toast.error("Failed to rent the car. Please try again.");

@@ -1,16 +1,6 @@
 const CarListing = require("../models/carListing");
 const User = require("../models/User");
 const paystack = require("../utils/paystack");
-const frontendUrl = require("../utils/frontendUrl");
-
-const syncCarAvailability = (carListing) => {
-  const hasActiveRental = (carListing.rentalPeriods || []).some((period) =>
-    ["pending", "approved"].includes(period.status)
-  );
-
-  carListing.isAvailable = !hasActiveRental;
-  return carListing;
-};
 
 // Rent a Car
 exports.rentCar = async (req, res) => {
@@ -38,38 +28,43 @@ exports.rentCar = async (req, res) => {
       });
     }
 
-    const hasActiveRental = (carListing.rentalPeriods || []).some((period) =>
-      ["pending", "approved"].includes(period.status)
-    );
+    // Check if the car is available for the specified period
+    // Allow any date range - remove availability check
+    // const isAvailable = carListing.rentalPeriods.every((period) => {
+    //   return (
+    //     new Date(rentStartDate) > new Date(period.endDate) ||
+    //     new Date(rentEndDate) < new Date(period.startDate)
+    //   );
+    // });
 
-    if (hasActiveRental) {
-      return res.status(400).json({
-        message: "This car is currently hired and cannot be rented again until it has been returned.",
-      });
-    }
+    // if (!isAvailable) {
+    //   return res
+    //     .status(400)
+    //     .json({ 
+    //       message: "Car is not available for the specified period",
+    //       existingPeriods: carListing.rentalPeriods
+    //     });
+    // }
 
-    const pendingRequest = {
+    // Add the rental period to the car listing
+    carListing.rentalPeriods.push({
       startDate: new Date(rentStartDate),
       endDate: new Date(rentEndDate),
       user: userId,
       deliveryLocation,
-      paymentMethod: paymentMethod || "Cash",
-      status: "pending",
-      createdAt: new Date(),
-    };
+    });
 
-    carListing.rentalPeriods.push(pendingRequest);
-    syncCarAvailability(carListing);
+    carListing.isAvailable = false; // Mark the car as not available
 
     await carListing.save();
 
-    const newRentalRequest = carListing.rentalPeriods[carListing.rentalPeriods.length - 1];
-
+    // Handle Paystack payment if selected
     if (paymentMethod === "Paystack") {
+      // Calculate rental duration in hours
       const startDate = new Date(rentStartDate);
       const endDate = new Date(rentEndDate);
       const durationHours = (endDate - startDate) / (1000 * 60 * 60);
-      const rentalAmount = Math.round((carListing.price || 0) * durationHours * 100);
+      const rentalAmount = Math.round((carListing.price || 0) * durationHours * 100); // Paystack amount in kobo
 
       try {
         const paystackResponse = await paystack.transaction.initialize({
@@ -78,20 +73,18 @@ exports.rentCar = async (req, res) => {
           metadata: {
             carId: carId,
             userId: userId,
-            rentalRequestId: newRentalRequest._id.toString(),
             rentStartDate: rentStartDate,
             rentEndDate: rentEndDate,
             deliveryLocation: deliveryLocation,
           },
-          callback_url: `${frontendUrl}/rent/car/booked`,
+          callback_url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/rent/car/booked`,
         });
 
         return res.status(200).json({
-          message: "Rent request submitted. Awaiting admin approval.",
+          message: "Paystack transaction initialized",
           authorization_url: paystackResponse.data.authorization_url,
           access_code: paystackResponse.data.access_code,
           reference: paystackResponse.data.reference,
-          rentalRequest: newRentalRequest,
         });
       } catch (paystackError) {
         console.error("Paystack error:", paystackError);
@@ -102,81 +95,11 @@ exports.rentCar = async (req, res) => {
       }
     }
 
-    res.status(200).json({
-      message: "Rent request submitted. Awaiting admin approval.",
-      rentalRequest: newRentalRequest,
-      carListing,
-    });
+    res.status(200).json({ message: "Car rented successfully", carListing });
   } catch (error) {
     res
       .status(500)
       .json({ message: "Internal server error", error: error.message });
-  }
-};
-
-exports.getPendingRentRequests = async (req, res) => {
-  try {
-    const pendingRequests = await CarListing.find({ "rentalPeriods.status": "pending" })
-      .populate("rentalPeriods.user", "firstName lastName email phone")
-      .lean();
-
-    const requests = pendingRequests.flatMap((car) =>
-      car.rentalPeriods
-        .filter((period) => period.status === "pending")
-        .map((period) => ({
-          _id: period._id,
-          carId: car._id,
-          vehicleName: car.vehicleName,
-          image: car.image,
-          user: period.user,
-          startDate: period.startDate,
-          endDate: period.endDate,
-          deliveryLocation: period.deliveryLocation,
-          paymentMethod: period.paymentMethod,
-          status: period.status,
-        }))
-    );
-
-    res.status(200).json({ pendingRequests: requests });
-  } catch (error) {
-    res.status(500).json({ message: "Internal server error", error: error.message });
-  }
-};
-
-exports.updateRentalRequestStatus = async (req, res) => {
-  const { carId, rentalId } = req.params;
-  const { status } = req.body;
-
-  if (!["approved", "rejected", "cancelled", "completed"].includes(status)) {
-    return res.status(400).json({
-      message: "Invalid status. Allowed values: approved, rejected, cancelled, completed.",
-    });
-  }
-
-  try {
-    const carListing = await CarListing.findById(carId);
-    if (!carListing) {
-      return res.status(404).json({ message: "Car listing not found" });
-    }
-
-    const rentalRequest = carListing.rentalPeriods.id(rentalId);
-    if (!rentalRequest) {
-      return res.status(404).json({ message: "Rental request not found" });
-    }
-
-    rentalRequest.status = status;
-
-    syncCarAvailability(carListing);
-
-    await carListing.save();
-
-    res.status(200).json({
-      message: `Rental request ${status} successfully`,
-      rentalRequest,
-      carListing,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
 

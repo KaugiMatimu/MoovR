@@ -933,7 +933,9 @@ exports.getPendingDrivers = async (req, res) => {
     const pendingDrivers = await User.find({
       role: "driver",
       verificationStatus: "pending",
-    }).populate("documents.drivingLicense documents.cnicFront documents.vehicleRegistrationBook documents.vehicleInsurance");
+    }).populate(
+      "documents.drivingLicense documents.proofOfResidency documents.vehicleRegistrationBook documents.vehicleInsurance"
+    );
     res.status(200).json({ success: true, drivers: pendingDrivers });
   } catch (error) {
     res.status(500).json({ success: false, message: "Error fetching pending drivers", error: error.message });

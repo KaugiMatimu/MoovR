@@ -10,26 +10,37 @@ import {
 } from "@nextui-org/table";
 import { Button } from "@nextui-org/button";
 import { Chip } from "@nextui-org/chip";
-import { Edit2, Trash, CheckCircle } from "lucide-react";
+import { Edit2, Trash, CheckCircle, Eye } from "lucide-react";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { BaseURL } from "@/utils/baseURL";
 import { toast } from "sonner";
 
+const documentFields = [
+  { key: "drivingLicense", label: "Driving license", urlField: "imageUrl" },
+  { key: "proofOfResidency", label: "Proof of residency", urlField: "imageUrl" },
+  {
+    key: "vehicleRegistrationBook",
+    label: "Vehicle registration book",
+    urlField: "registrationBook",
+  },
+  { key: "vehicleInsurance", label: "Vehicle insurance", urlField: "certificate" },
+];
+
 export default function VerifyDriversPage() {
   const [allDrivers, setAllDrivers] = useState([]);
+  const [selectedDriver, setSelectedDriver] = useState(null);
 
   const getAllDrivers = async () => {
     try {
       let token = localStorage.getItem("token");
-      const response = await axios.get(`${BaseURL}/auth/all/drivers`, {
+      const response = await axios.get(`${BaseURL}/auth/drivers/pending`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
       const drivers = response.data?.drivers || [];
-      console.log("your all drivers :",drivers);
       setAllDrivers(drivers);
     } catch (error) {
       console.error("Error fetching drivers:", error);
@@ -143,11 +154,15 @@ export default function VerifyDriversPage() {
                 </TableCell>
 
                 <TableCell>
-                  {driver.isVerified ? (
-                    <Chip color="success" variant="flat" size="sm">
-                      Verified
-                    </Chip>
-                  ) : (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="flat"
+                      startContent={<Eye size={16} />}
+                      onPress={() => setSelectedDriver(driver)}
+                    >
+                      Review documents
+                    </Button>
                     <Button
                       size="sm"
                       color="primary"
@@ -156,7 +171,7 @@ export default function VerifyDriversPage() {
                     >
                       Verify
                     </Button>
-                  )}
+                  </div>
                 </TableCell>
 
                 <TableCell>
@@ -179,6 +194,69 @@ export default function VerifyDriversPage() {
           </TableBody>
         </Table>
       </div>
+
+      {selectedDriver && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="document-review-title"
+          onClick={() => setSelectedDriver(null)}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl dark:bg-zinc-900"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 id="document-review-title" className="text-2xl font-bold text-gray-800 dark:text-white">
+                  {selectedDriver.firstName} {selectedDriver.lastName}&apos;s documents
+                </h2>
+                <p className="text-sm text-gray-500">Review the uploads before verifying this driver.</p>
+              </div>
+              <Button isIconOnly variant="light" aria-label="Close document review" onPress={() => setSelectedDriver(null)}>
+                <span aria-hidden="true">&times;</span>
+              </Button>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              {documentFields.map(({ key, label, urlField }) => {
+                const document = selectedDriver.documents?.[key];
+                const documentUrl = document?.[urlField];
+
+                return (
+                  <section key={key} className="rounded-lg border p-4 dark:border-zinc-700">
+                    <h3 className="mb-3 font-semibold text-gray-800 dark:text-white">{label}</h3>
+                    {documentUrl ? (
+                      <>
+                        <a href={documentUrl} target="_blank" rel="noreferrer">
+                          <img
+                            src={documentUrl}
+                            alt={`${label} uploaded by ${selectedDriver.firstName} ${selectedDriver.lastName}`}
+                            className="h-56 w-full rounded-md border object-contain bg-gray-100 dark:bg-zinc-800"
+                          />
+                        </a>
+                        {key === "vehicleInsurance" && (
+                          <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+                            {document.insuranceName} · Policy {document.policyNumber}
+                          </p>
+                        )}
+                        {key === "vehicleRegistrationBook" && (
+                          <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+                            {document.vehicleMakeModel} · {document.registrationNumber}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-500">Not uploaded</p>
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
