@@ -109,13 +109,16 @@ init(server);
 // Enable CORS for frontend and socket origins
 const allowedOrigins = [
   "https://moovr.taxi",
+  "http://moovr.taxi",
   "https://www.moovr.taxi",
+  "http://www.moovr.taxi",
   "https://admin.moovr.taxi",
+  "http://admin.moovr.taxi",
   "http://localhost:5173",
-  "http://localhost:5175",  
+  "http://localhost:5175",
   "http://localhost:3000",
   "http://localhost:3001",
-  "https://moovr-admin.vercel.app", // Added common production origin pattern
+  "https://moovr-admin.vercel.app",
 ];
 
 const corsOptions = {
