@@ -1,1 +1,5 @@
-export const BaseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+export const BaseURL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://api.moovr.taxi/api/v1"
+    : "http://localhost:5000/api/v1");
