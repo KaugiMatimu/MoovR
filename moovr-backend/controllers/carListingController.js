@@ -1,6 +1,7 @@
-const mongoose = require("mongoose");
 const CarListing = require("../models/carListing");
 const { uploadImage } = require("../utils/firebaseStorage"); // Import firebase storage utility
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 exports.createCarListing = async (req, res) => {
   const { vehicleName, make, model, description, price } = req.body;
@@ -249,20 +250,19 @@ exports.getCarListing = async (req, res) => {
 exports.getCarsByDriver = async (req, res) => {
   const { id } = req.params;
 
-  if (req.user && id !== req.user._id.toString()) {
+  if (req.user && id !== String(req.user.getDataValue("id"))) {
     return res.status(403).json({ message: "You can only view your own listings" });
   }
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!UUID_PATTERN.test(id)) {
     return res.status(400).json({ message: "Invalid driver ID" });
   }
 
-  const driverId = new mongoose.Types.ObjectId(id);
-  console.log("Fetching cars for driver:", driverId);
+  console.log("Fetching cars for driver:", id);
 
   try {
     // Find cars listed by the specific driver
-    const cars = await CarListing.find({ driverId });
+    const cars = await CarListing.find({ driverId: id });
     console.log("Found cars:", cars.length);
 
     res.status(200).json({ cars: cars || [] });

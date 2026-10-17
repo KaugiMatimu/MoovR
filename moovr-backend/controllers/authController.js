@@ -36,8 +36,21 @@ exports.checkUser = async (req, res) => {
 // 2. **Verify Firebase Token**
 exports.firebaseVerify = async (req, res) => {
   const { idToken, role, phone: bodyPhone, name: bodyName } = req.body;
+  let decodedToken;
+
   try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    decodedToken = await admin.auth().verifyIdToken(idToken);
+  } catch (error) {
+    console.error("Firebase ID token verification failed:", error);
+    return res.status(401).json({
+      message: "Invalid Firebase token",
+      error: error.message,
+      details: process.env.NODE_ENV === "development" ? error : undefined,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
+  }
+
+  try {
     const { phone_number, email, uid, name } = decodedToken;
     const displayName = name || decodedToken.displayName || bodyName || "";
     const [firstName, ...lastNameParts] = displayName.trim().split(" ");
@@ -96,12 +109,12 @@ exports.firebaseVerify = async (req, res) => {
       isRegistered,
     });
   } catch (error) {
-    console.error("Firebase Verify Error:", error);
-    res.status(401).json({ 
-      message: "Invalid Firebase token", 
+    console.error("Firebase user lookup/update failed:", error);
+    res.status(500).json({
+      message: "Error loading or updating the authenticated user",
       error: error.message,
-      details: process.env.NODE_ENV === 'development' ? error : undefined,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      details: process.env.NODE_ENV === "development" ? error : undefined,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };
@@ -117,16 +130,27 @@ exports.googleLogin = async (req, res) => {
 
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     
-    // Check if token belongs to the expected project
+    // Firebase ID tokens use the OAuth client ID in `aud`, not the Firebase project ID.
+    // Validate the Firebase project instead so valid Google sign-in tokens are accepted.
     const envProjectId = process.env.VITE_FIREBASE_PROJECT_ID || "moovr-73876";
-    const tokenAudience = decodedToken.aud || decodedToken.iss?.split('/').pop();
-    
-    if (tokenAudience !== envProjectId) {
-      console.error(`Audience mismatch! Token project: ${tokenAudience}, Expected: ${envProjectId}`);
-      return res.status(500).json({
-        message: "Google login failed: Audience mismatch",
-        error: `Token belongs to project ${tokenAudience}, but backend expects ${envProjectId}`,
-        code: "AUDIENCE_MISMATCH"
+    const tokenProjectId = decodedToken.firebase?.project_id || decodedToken.iss?.split("/").pop();
+    const tokenIssuer = decodedToken.iss || "";
+
+    if (tokenProjectId && tokenProjectId !== envProjectId) {
+      console.error(`Project mismatch! Token project: ${tokenProjectId}, Expected: ${envProjectId}`);
+      return res.status(401).json({
+        message: "Google login failed: Firebase project mismatch",
+        error: `Token belongs to project ${tokenProjectId}, but backend expects ${envProjectId}`,
+        code: "PROJECT_MISMATCH"
+      });
+    }
+
+    if (tokenIssuer && !tokenIssuer.includes(envProjectId) && decodedToken.firebase?.sign_in_provider !== "google.com") {
+      console.error(`Issuer mismatch! Token issuer: ${tokenIssuer}, Expected project: ${envProjectId}`);
+      return res.status(401).json({
+        message: "Google login failed: invalid Firebase issuer",
+        error: `Token issuer is ${tokenIssuer}, but backend expects Firebase issuer for ${envProjectId}`,
+        code: "INVALID_ISSUER"
       });
     }
 
@@ -189,6 +213,15 @@ exports.googleLogin = async (req, res) => {
       message: error.message,
       code: error.code
     });
+
+    if (["auth/argument-error", "auth/id-token-expired", "auth/invalid-id-token"].includes(error.code)) {
+      return res.status(401).json({
+        message: "Google login failed: invalid or expired token",
+        error: error.message,
+        code: error.code,
+      });
+    }
+
     return res.status(500).json({ 
       message: "Google login failed at backend", 
       error: error.message, 
@@ -727,25 +760,53 @@ exports.updateProfilePicture = async (req, res) => {
 
 exports.updateDriverLocation = async (req, res) => {
   const { latitude, longitude, rideId } = req.body;
-  const driverId = req.user._id;
+  const driverId = req.user.getDataValue("id");
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+
+  if (
+    latitude === undefined ||
+    latitude === null ||
+    (typeof latitude === "string" && !latitude.trim()) ||
+    longitude === undefined ||
+    longitude === null ||
+    (typeof longitude === "string" && !longitude.trim()) ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    lat < -90 ||
+    lat > 90 ||
+    lng < -180 ||
+    lng > 180
+  ) {
+    return res.status(400).json({ message: "Valid latitude and longitude are required" });
+  }
 
   try {
-    await User.findByIdAndUpdate(driverId, {
-      location: {
-        type: "Point",
-        coordinates: [longitude, latitude], // GeoJSON format: [longitude, latitude]
+    const [updatedCount] = await User.update(
+      {
+        location: {
+          type: "Point",
+          coordinates: [lng, lat],
+        },
+        updatedAt: new Date(),
       },
-      updatedAt: Date.now(),
-    });
+      { where: { id: driverId } }
+    );
+
+    if (updatedCount === 0) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
 
     if (rideId) {
       try {
         const io = getIo();
-        io.to(`ride_${rideId}`).emit("driverLocationUpdate", {
-          driverId,
-          coordinates: [longitude, latitude],
-          rideId,
-        });
+        if (io) {
+          io.to(`ride_${rideId}`).emit("driverLocationUpdate", {
+            driverId,
+            coordinates: [lng, lat],
+            rideId,
+          });
+        }
       } catch (socketError) {
         console.warn("Socket.io not initialized for driver location update.", socketError.message);
       }
@@ -753,9 +814,11 @@ exports.updateDriverLocation = async (req, res) => {
 
     res.status(200).json({ message: "Driver location updated successfully" });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error updating location", error: error.message });
+    console.error("Error updating driver location:", error);
+    res.status(500).json({
+      message: "Error updating location",
+      error: error.message,
+    });
   }
 };
 
@@ -807,20 +870,16 @@ exports.shareLiveLocation = async (req, res) => {
 
 exports.updatePassengerLocation = async (req, res) => {
   const { latitude, longitude, rideId, targetUserId } = req.body;
-  const userId = req.user._id;
+  const userId = req.user.getDataValue("id");
 
   try {
-    const user = await User.findByIdAndUpdate(
-      userId,
-      {
-        location: {
-          type: "Point",
-          coordinates: [longitude, latitude],
-        },
-        updatedAt: Date.now(),
+    const user = await req.user.update({
+      location: {
+        type: "Point",
+        coordinates: [longitude, latitude],
       },
-      { new: true }
-    );
+      updatedAt: new Date(),
+    });
 
     if (rideId) {
       try {

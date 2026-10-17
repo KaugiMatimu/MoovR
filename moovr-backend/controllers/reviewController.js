@@ -77,28 +77,20 @@ exports.addReview = async (req, res) => {
 
 // Get Reviews for a Driver
 exports.getDriverReviews = async (req, res) => {
-  const driverId = req.user._id; // Assume the driver is authenticated
+  const driverId = req.user.getDataValue("id");
 
   try {
-    // Fetch the driver and populate reviews with reviewer (User) and the comment
-    const driver = await User.findById(driverId).populate({
-      path: "reviews", // Populate reviews
-      populate: {
-        path: "reviewer", // Populate reviewer information (User)
-        select: "firstName lastName profilePic email", // Select the fields you want from the User model
-      },
-    });
-
-
+    const driver = await User.findById(driverId);
     if (!driver) {
       return res.status(404).json({ message: "Driver not found" });
     }
 
-    const reviews = driver.reviews;
-    const totalRatings = reviews.reduce(
-      (sum, review) => sum + review.rating,
-      0
-    );
+    const reviews = await Review.find({ driver: driverId })
+      .populate("reviewer", "firstName lastName profilePicture email");
+    const totalRatings = reviews.reduce((sum, review) => {
+      const rating = Number(review.rating);
+      return sum + (Number.isFinite(rating) ? rating : 0);
+    }, 0);
     const averageRating = reviews.length
       ? (totalRatings / reviews.length).toFixed(2)
       : 0;

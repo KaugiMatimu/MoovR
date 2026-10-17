@@ -101,8 +101,23 @@ const Register = () => {
     try {
       await signInWithRedirect(auth, googleProvider);
     } catch (error) {
+      const shouldRetryPopup =
+        error?.code === 'auth/popup-blocked' ||
+        error?.code === 'auth/internal-error' ||
+        error?.code === 'auth/network-request-failed' ||
+        /ERR_CONNECTION_CLOSED|ERR_CONNECTION_RESET|Failed to fetch|apis.google.com|NetworkError/i.test(error?.message || '');
+
+      if (shouldRetryPopup) {
+        try {
+          await signInWithPopup(auth, googleProvider);
+          return;
+        } catch (popupError) {
+          console.error("Google Login Popup Retry Error:", popupError);
+        }
+      }
+
       console.error("Google Login Error:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Google Sign-In failed.";
+      const errorMessage = error?.response?.data?.message || error?.message || "Google Sign-In failed.";
       toast.error(errorMessage);
     }
   };

@@ -1,4 +1,3 @@
-import React from "react";
 import Header from "../../components/driver-panel/header";
 import { MdOutlinePersonOutline } from "react-icons/md";
 import { IoIosStar } from "react-icons/io";
@@ -58,7 +57,7 @@ const End = () => {
         } else {
           toast.success("Ride completed successfully!");
         }
-        navigate("/d/completed");
+        navigate("/d/dashboard");
       } else {
         toast.error("Failed to complete the ride. Please try again.");
       }

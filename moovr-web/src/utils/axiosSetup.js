@@ -33,6 +33,13 @@ const normalizeRequestUrl = (config) => {
 
 // Attach token from localStorage or cookies to every request if present
 const REFRESH_ENDPOINT = "/auth/firebase-verify";
+
+const clearBackendSession = () => {
+  localStorage.removeItem("token");
+  Cookies.remove("token", { path: "/" });
+  delete axios.defaults.headers.common["Authorization"];
+};
+
 axios.interceptors.request.use(
   (config) => {
     normalizeRequestUrl(config);
@@ -116,10 +123,10 @@ axios.interceptors.response.use(
     axios.__isRefreshing = true;
 
     try {
+      await auth.authStateReady();
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        // No firebase session; clear local token and reject
-        localStorage.removeItem("token");
+        clearBackendSession();
         axios.__isRefreshing = false;
         processQueue(new Error("No firebase session"), null);
         return Promise.reject(error);
@@ -162,7 +169,7 @@ axios.interceptors.response.use(
       return Promise.reject(error);
     } catch (e) {
       axios.__isRefreshing = false;
-      localStorage.removeItem("token");
+      clearBackendSession();
       processQueue(e, null);
       return Promise.reject(e);
     }

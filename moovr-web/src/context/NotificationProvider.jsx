@@ -23,6 +23,8 @@ export const NotificationProvider = ({ children }) => {
   const getAuthHeaders = () => {
     const userData = JSON.parse(localStorage.getItem("userData") || "{}");
     const token = localStorage.getItem("token") || userData.token;
+    if (!token || token === "null" || token === "undefined") return null;
+
     return {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -31,16 +33,22 @@ export const NotificationProvider = ({ children }) => {
   };
 
   const fetchNotifications = useCallback(async () => {
-    const userData = localStorage.getItem("userData");
-    if (!userData) return;
+    const authHeaders = getAuthHeaders();
+    if (!authHeaders) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
 
     setLoading(true);
     try {
-      const response = await axios.get(API_URL, getAuthHeaders());
+      const response = await axios.get(API_URL, authHeaders);
       setNotifications(response.data);
       setUnreadCount(response.data.filter((n) => !n.isRead).length);
     } catch (error) {
-      console.error("Error fetching notifications:", error);
+      if (error.response?.status !== 401) {
+        console.error("Error fetching notifications:", error);
+      }
     } finally {
       setLoading(false);
     }

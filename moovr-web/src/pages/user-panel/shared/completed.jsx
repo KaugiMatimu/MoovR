@@ -100,7 +100,8 @@ const CompletedScreen = () => {
     if (!normalized) return false;
     const invalidStrings = ["init", "undefined", "null", "nan", "[object object]"];
     if (invalidStrings.includes(normalized.toLowerCase())) return false;
-    return /^[0-9a-fA-F]{24}$/.test(normalized);
+    return /^[0-9a-fA-F]{24}$/.test(normalized)
+      || /^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$/.test(normalized);
   };
 
   const getValidRideId = (potentialId) => {

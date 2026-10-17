@@ -1,17 +1,16 @@
-const mongoose = require("mongoose");
 const dotenv = require("dotenv");
+const path = require("path");
+dotenv.config({ path: path.join(__dirname, "..", ".env") });
+const { sequelize } = require("../models/postgresRegistry");
 const Ride = require("../models/Ride");
 const User = require("../models/User");
 const Wallet = require("../models/Wallet");
 
-const path = require("path");
-dotenv.config({ path: path.join(__dirname, "..", ".env") });
-
 const testPayment = async () => {
   try {
-    console.log("Connecting to MongoDB...");
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log("Connected successfully.");
+    await sequelize.authenticate();
+    await sequelize.sync();
+    console.log("Connected to PostgreSQL.");
 
     // 1. Create Mock Passenger and Driver
     const passenger = new User({

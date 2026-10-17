@@ -1,19 +1,15 @@
-import React, { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Header from "../../../components/user-panel/header";
 import Carousel from "../../../components/user-panel/carousel";
 import RideForm from "../../../components/user-panel/ride-form";
 import { BaseURL } from "../../../utils/BaseURL";
-import { DotLoader } from "react-spinners";
 import toast from "react-hot-toast";
 
 const Ride = () => {
-  const [isLoading, setIsLoading] = useState(true);
-
   useEffect(() => {
     // Check if browser supports geolocation
     if (!navigator.geolocation) {
       toast.error("Geolocation is not supported by your browser.");
-      setIsLoading(false);
       return;
     }
 
@@ -40,8 +36,6 @@ const Ride = () => {
             toast.error("⚠️ An unknown error occurred while fetching location.");
             break;
         }
-
-        setIsLoading(false);
       },
       { enableHighAccuracy: true }
     );
@@ -61,7 +55,6 @@ const Ride = () => {
 
       if (!token) {
         // For guest users, we don't update location in the database but still allow them to see the map
-        setIsLoading(false);
         return;
       }
 
@@ -82,8 +75,6 @@ const Ride = () => {
       }
     } catch (err) {
       console.error("Error updating location:", err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -91,15 +82,9 @@ const Ride = () => {
     <div>
       <Header />
 
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <DotLoader color="#A75AF2" />
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-1 min-h-[500px] items-center p-4">
-          <RideForm />
-        </div>
-      )}
+      <div className="grid md:grid-cols-1 min-h-[500px] items-center p-4">
+        <RideForm />
+      </div>
 
       <Carousel />
     </div>

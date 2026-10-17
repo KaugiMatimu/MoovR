@@ -71,6 +71,7 @@ const DriverVerification = () => {
 
         if (token) {
           localStorage.setItem("token", token);
+          localStorage.setItem("role", backendUser.role || "driver");
           localStorage.setItem("userData", JSON.stringify(backendUser));
 
           // ✅ Set cookies with consistent path and expiration

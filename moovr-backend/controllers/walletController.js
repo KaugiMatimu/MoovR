@@ -230,6 +230,7 @@ exports.withdrawMoney = async (req, res) => {
       type: "debit",
       amount,
       description: "Withdrawal request",
+      status: "pending",
     });
 
     await wallet.save();
@@ -292,13 +293,18 @@ exports.approveWithdrawal = async (req, res) => {
   const { transactionId, status } = req.body; // status = "approved" or "declined"
 
   try {
-    // Find the transaction
-    const wallet = await Wallet.findOne({ "transactions._id": transactionId });
+    const wallets = await Wallet.find();
+    const wallet = wallets.find((entry) =>
+      entry.transactions.some((txn) => String(txn._id) === String(transactionId))
+    );
     if (!wallet) {
       return res.status(404).json({ message: "Transaction not found" });
     }
 
-    const transaction = wallet.transactions.id(transactionId);
+    const transactionIndex = wallet.transactions.findIndex((txn) =>
+      String(txn._id) === String(transactionId)
+    );
+    const transaction = wallet.transactions[transactionIndex];
     if (!transaction || transaction.status !== "pending") {
       return res.status(400).json({ message: "Invalid transaction" });
     }
@@ -306,13 +312,13 @@ exports.approveWithdrawal = async (req, res) => {
     if (status === "approved") {
       // Deduct balance on approval
       wallet.balance -= transaction.amount;
-      transaction.status = "approved";
-    } else if (status === "declined") {
-      transaction.status = "declined"; // Just update status, no deduction
-    } else {
+    } else if (status !== "declined") {
       return res.status(400).json({ message: "Invalid status" });
     }
 
+    wallet.transactions = wallet.transactions.map((txn, index) =>
+      index === transactionIndex ? { ...txn, status } : txn
+    );
     await wallet.save();
 
     res.status(200).json({
@@ -328,7 +334,7 @@ exports.approveWithdrawal = async (req, res) => {
 
 exports.getPendingWithdrawals = async (req, res) => {
   try {
-    const wallets = await Wallet.find({ "transactions.status": "pending" });
+    const wallets = await Wallet.find();
 
     const pendingWithdrawals = wallets.flatMap((wallet) =>
       wallet.transactions

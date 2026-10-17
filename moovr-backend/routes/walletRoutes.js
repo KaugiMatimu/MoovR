@@ -19,11 +19,13 @@ const frontendUrl = require("../utils/frontendUrl");
 router.post("/create-payment-intent", async (req, res) => {
   try {
     const { amount, userId } = req.body; // amount should be in Naira
+    const parsedAmount = parseFloat(amount);
 
-    const amountInKobo = Math.round((parseFloat(amount) || 0) * 100);
-    if (amountInKobo <= 0) {
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       return res.status(400).json({ error: "Invalid amount" });
     }
+
+    const amountInKobo = Math.round(parsedAmount * 100);
 
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({

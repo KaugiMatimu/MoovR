@@ -7,7 +7,7 @@ const CarListing = require("../models/carListing");
 
 // Get Revenue for a Driver by Day of Week
 exports.getRevenue = async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user.getDataValue("id");
   const role = req.user.role;
 
   try {
@@ -67,7 +67,7 @@ exports.getRevenue = async (req, res) => {
     calculateDailyRevenue(pastDriverBookings);
 
     const pastCarListings = await CarListing.find({
-      driver: userId,
+      driverId: userId,
       status: { $in: ["completed", "cancelled"] },
     });
     calculateDailyRevenue(pastCarListings);

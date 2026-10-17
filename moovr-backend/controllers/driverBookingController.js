@@ -113,7 +113,7 @@ exports.getUserBookings = async (req, res) => {
 
 // Get Bookings for a Driver
 exports.getDriverBookings = async (req, res) => {
-  const driverId = req.user._id;
+  const driverId = req.user.getDataValue("id");
 
   try {
     const bookings = await DriverBooking.find({ driver: driverId });

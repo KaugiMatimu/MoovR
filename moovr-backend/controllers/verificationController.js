@@ -20,7 +20,9 @@ exports.uploadDocuments = async (req, res) => {
     registrationDate,
     registrationExpiryDate,
   } = req.body;
-  const userId = req.user._id;
+  const userId = req.user?.id ?? (
+    typeof req.user?._id === "object" ? req.user._id.id ?? req.user._id._id : req.user?._id
+  );
 
   if (
     !req.file &&
@@ -85,13 +87,17 @@ exports.uploadDocuments = async (req, res) => {
 
     await documentData.save();
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { [`documents.${documentType}`]: documentData._id },
-      { new: true }
+    const [updatedUserCount] = await User.update(
+      {
+        documents: {
+          ...(req.user.documents || {}),
+          [documentType]: documentData.id,
+        },
+      },
+      { where: { id: userId } }
     );
 
-    if (!updatedUser) {
+    if (!updatedUserCount) {
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -108,20 +114,22 @@ exports.uploadDocuments = async (req, res) => {
 };
 
 exports.acceptTerms = async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user?.id ?? (
+    typeof req.user?._id === "object" ? req.user._id.id ?? req.user._id._id : req.user?._id
+  );
 
   if (!userId) {
     return res.status(400).json({ message: "User ID is required." });
   }
 
   try {
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
+    const [updatedUserCount, updatedUsers] = await User.update(
       { termsAccepted: true },
-      { new: true }
+      { where: { id: userId }, returning: true }
     );
+    const updatedUser = updatedUsers?.[0];
 
-    if (!updatedUser) {
+    if (!updatedUserCount || !updatedUser) {
       return res.status(404).json({ message: "User not found." });
     }
 

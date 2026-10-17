@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User"); // Adjust based on your actual model location
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Protect routes - Verify JWT token and attach user to request object
 const protect = async (req, res, next) => {
@@ -37,10 +38,21 @@ const protect = async (req, res, next) => {
     }
   }
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("Token decoded successfully, user ID:", decoded.id);
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    console.error("JWT Verification Error:", error.message);
+    res.status(401).json({ message: "Token is not valid", error: error.message });
+    return;
+  }
 
+  console.log("Token decoded successfully, user ID:", decoded.id);
+  if (!UUID_PATTERN.test(String(decoded.id || ""))) {
+    return res.status(401).json({ message: "Please sign in again to continue." });
+  }
+
+  try {
     const user = await User.findById(decoded.id).select("-password");
     if (!user) {
       console.warn(`Auth Middleware: User with ID ${decoded.id} not found in database.`);
@@ -49,8 +61,8 @@ const protect = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error("JWT Verification Error:", error.message);
-    res.status(401).json({ message: "Token is not valid", error: error.message });
+    console.error("Auth Middleware user lookup error:", error.message);
+    res.status(500).json({ message: "Error loading authenticated user" });
   }
 };
 

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 import { auth, googleProvider, sendOtp } from "../firebase";
-import { signInWithPopup } from "firebase/auth";
+import { signInWithPopup, signInWithRedirect } from "firebase/auth";
 import toast from "react-hot-toast";
+import { AppleIcon, FacebookIcon, GoogleIcon } from "../components/SocialIcons";
 
 const Login = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -22,11 +23,28 @@ const Login = () => {
       console.log("Google User:", user);
       toast.success("Signed in with Google successfully!");
     } catch (error) {
-      if (error.code === 'auth/cancelled-by-user' || error.code === 'auth/popup-closed-by-user') {
+      const shouldRetryRedirect =
+        error?.code === 'auth/popup-blocked' ||
+        error?.code === 'auth/internal-error' ||
+        error?.code === 'auth/network-request-failed' ||
+        error?.code === 'auth/operation-not-supported-in-this-environment' ||
+        /ERR_CONNECTION_CLOSED|ERR_CONNECTION_RESET|Failed to fetch|apis.google.com|NetworkError/i.test(error?.message || '');
+
+      if (error?.code === 'auth/cancelled-by-user' || error?.code === 'auth/popup-closed-by-user') {
         return;
       }
+
+      if (shouldRetryRedirect) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectError) {
+          console.error("Google Sign-In Redirect Error:", redirectError);
+        }
+      }
+
       console.error("Google Sign-In Error:", error);
-      toast.error(`Failed to sign in with Google: ${error.message}`);
+      toast.error(`Failed to sign in with Google: ${error?.message || 'Unknown error'}`);
     }
   };
 
@@ -136,23 +154,15 @@ const Login = () => {
               onClick={handleGoogleSignIn}
               className="w-full py-2 border border-gray-300 rounded-full flex items-center justify-center space-x-2 hover:bg-gray-100"
             >
-              <img src="/icons/google.svg" alt="Google" className="w-5 h-5" />
+              <GoogleIcon className="w-5 h-5" />
               <span>Continue with Google</span>
             </button>
             <button className="w-full py-2 border border-gray-300 rounded-full flex items-center justify-center space-x-2 hover:bg-gray-100">
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/633px-Apple_logo_black.svg.png"
-                alt="Apple"
-                className="w-5 h-5"
-              />
+              <AppleIcon className="w-5 h-5" />
               <span>Continue with Apple</span>
             </button>
             <button className="w-full py-2 border border-gray-300 rounded-full flex items-center justify-center space-x-2 hover:bg-gray-100">
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg"
-                alt="Facebook"
-                className="w-5 h-5"
-              />
+              <FacebookIcon className="w-5 h-5 text-blue-600" />
               <span>Continue with Facebook</span>
             </button>
           </div>

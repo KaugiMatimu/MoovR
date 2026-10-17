@@ -10,10 +10,11 @@ import Cookies from "js-cookie";
 import "react-international-phone/style.css";
 import "react-toastify/dist/ReactToastify.css";
 import { BaseURL } from "../../../utils/BaseURL";
+import { AppleIcon, GoogleIcon } from "../../../components/SocialIcons";
 
 const Login = () => {
   const location = useLocation();
-  const role = location.state?.role || null; // fallback to null if not provided
+  const role = location.state?.role || new URLSearchParams(location.search).get("role") || "user";
 
   const [phone, setPhone] = useState("");
   const navigate = useNavigate();
@@ -49,16 +50,18 @@ const Login = () => {
       const idToken = await user.getIdToken();
       console.log("Google Auth successful, verifying with backend...");
 
+      const requestedRole = role;
+
       const response = await axios.post(`${BaseURL}/auth/google-login`, {
         idToken,
-        role: role || "user"
+        role: requestedRole
       });
 
       console.log("Backend response:", response.data);
 
       if (response.data.token) {
         const { token, user: backendUser } = response.data;
-        const roleToSet = backendUser.role || role || "user";
+        const roleToSet = requestedRole === "driver" || backendUser?.role === "driver" ? "driver" : "user";
 
         Cookies.set("token", token, { expires: 7, path: '/' });
         Cookies.set("role", roleToSet, { expires: 7, path: '/' });
@@ -145,20 +148,29 @@ const Login = () => {
       }
     } catch (error) {
       console.error("Google Login Popup Error:", error);
-      if (error.code === 'auth/popup-blocked') {
+      const shouldRetryRedirect =
+        error?.code === 'auth/popup-blocked' ||
+        error?.code === 'auth/internal-error' ||
+        error?.code === 'auth/network-request-failed' ||
+        error?.code === 'auth/operation-not-supported-in-this-environment' ||
+        /ERR_CONNECTION_CLOSED|ERR_CONNECTION_RESET|Failed to fetch|apis.google.com|NetworkError/i.test(error?.message || '');
+
+      if (shouldRetryRedirect) {
         try {
           await signInWithRedirect(auth, googleProvider);
+          return;
         } catch (redirectError) {
           console.error("Google Login Redirect Error:", redirectError);
           toast.error("Google sign-in failed. Please try again.");
           setLoading(false);
+          return;
         }
-      } else if (error.code !== 'auth/cancelled-by-user') {
-        toast.error(error.message || "Google Sign-In failed.");
-        setLoading(false);
-      } else {
-        setLoading(false);
       }
+
+      if (error?.code !== 'auth/cancelled-by-user') {
+        toast.error(error?.message || "Google Sign-In failed.");
+      }
+      setLoading(false);
     }
   };
 
@@ -167,6 +179,24 @@ const Login = () => {
       <div className="bg-white shadow-lg rounded-lg overflow-hidden max-w-5xl h-[550px] grid md:grid-cols-2">
         <div className="p-8 w-96 mx-auto">
           <div id="recaptcha-container-user-login"></div>
+          <div className="grid grid-cols-2 rounded-full bg-gray-100 p-1 mb-6" aria-label="Choose account type">
+            <Link
+              to="/login?role=user"
+              state={{ role: "user" }}
+              aria-current={role === "user" ? "page" : undefined}
+              className={`rounded-full py-2 text-center text-sm font-medium transition-colors ${role === "user" ? "bg-white text-purple-700 shadow-sm" : "text-gray-600 hover:text-gray-900"}`}
+            >
+              Passenger
+            </Link>
+            <Link
+              to="/login?role=driver"
+              state={{ role: "driver" }}
+              aria-current={role === "driver" ? "page" : undefined}
+              className={`rounded-full py-2 text-center text-sm font-medium transition-colors ${role === "driver" ? "bg-white text-purple-700 shadow-sm" : "text-gray-600 hover:text-gray-900"}`}
+            >
+              Driver
+            </Link>
+          </div>
           <h2 className="text-2xl font-bold mb-4">Enter your mobile number</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <PhoneInput
@@ -211,19 +241,11 @@ const Login = () => {
               onClick={handleGoogleLogin}
               className="w-full py-2.5 border border-gray-300 rounded-full flex items-center justify-center space-x-2 hover:bg-gray-50 transition shadow-sm"
             >
-              <img
-                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                alt="Google"
-                className="w-5 h-5"
-              />
+              <GoogleIcon className="w-5 h-5" />
               <span className="text-sm font-medium">Continue with Google</span>
             </button>
             <button className="w-full py-2.5 border border-gray-300 rounded-full flex items-center justify-center space-x-2 hover:bg-gray-50 transition shadow-sm">
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/633px-Apple_logo_black.svg.png"
-                alt="Apple"
-                className="w-5 h-5"
-              />
+              <AppleIcon className="w-5 h-5" />
               <span className="text-sm font-medium">Continue with Apple</span>
             </button>
           </div>

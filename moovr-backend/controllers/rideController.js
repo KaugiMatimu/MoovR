@@ -283,58 +283,62 @@ exports.getRideByShareToken = async (req, res) => {
 // Accept Ride
 exports.acceptRide = async (req, res) => {
   const { rideId } = req.params;
-  const driverId = req.user._id;
+  const driverId = req.user.getDataValue("id");
 
   try {
-    const ride = await Ride.findById(rideId);
-    if (!ride) {
-      return res.status(404).json({ message: "Ride not found" });
+    const [updatedCount] = await Ride.update(
+      {
+        driver: driverId,
+        status: "accepted",
+        updatedAt: new Date(),
+      },
+      {
+        where: {
+          id: rideId,
+          status: "pending",
+        },
+      }
+    );
+
+    if (updatedCount === 0) {
+      const ride = await Ride.findById(rideId);
+      if (!ride) {
+        return res.status(404).json({ message: "Ride not found" });
+      }
+      return res.status(400).json({ message: "Ride is not available for acceptance" });
     }
-
-    if (ride.status !== "pending") {
-      return res
-        .status(400)
-        .json({ message: "Ride is not available for acceptance" });
-    }
-
-    ride.driver = driverId;
-    ride.status = "accepted";
-    ride.updatedAt = Date.now();
-    await ride.save();
-
-    const driver = req.user;
-    // driver.rides.push(ride._id); // rides might be an array of IDs
-    await User.findByIdAndUpdate(driver._id, { $push: { rides: ride._id } });
 
     // Populate ride details for notification
-    const populatedRide = await Ride.findById(ride._id)
+    const populatedRide = await Ride.findById(rideId)
       .populate("user", "firstName lastName profilePicture phone")
       .populate("driver", "firstName lastName profilePicture phone carCategory serviceType");
 
-    // Fetch user details for notifications
-    const user = await User.findById(ride.user);
+    const passengerId = populatedRide.getDataValue("user");
+    const user = await User.findById(passengerId);
+    const driver = req.user;
 
     // Notify user via multi-channel
     await notifyUser(user, {
       event: "rideAccepted",
       data: populatedRide,
       subject: "Ride Accepted - Moovr",
-      message: `Your ride from ${ride.pickupLocation} to ${ride.dropoffLocation} has been accepted by ${driver.firstName}.`,
+      message: `Your ride from ${populatedRide.pickupLocation} to ${populatedRide.dropoffLocation} has been accepted by ${driver.firstName}.`,
     });
 
     const io = getIo();
     if (io) {
-      io.to(`ride_${ride._id}`).emit("rideAccepted", populatedRide);
-      if (ride.user) {
-        io.to(`user_${ride.user.toString()}`).emit("rideAccepted", populatedRide);
+      io.to(`ride_${rideId}`).emit("rideAccepted", populatedRide);
+      if (passengerId) {
+        io.to(`user_${passengerId}`).emit("rideAccepted", populatedRide);
       }
     }
 
     const { sendSystemNotification } = require("../utils/notificationService");
-    sendSystemNotification(driver._id, "rideAccepted", { ...populatedRide.toObject(), message: "You have accepted the ride." }, "Ride Accepted");
+    await sendSystemNotification(driverId, "rideAccepted", { ...populatedRide.toObject(), message: "You have accepted the ride." }, "Ride Accepted");
 
     res.status(200).json({ message: "Ride accepted successfully", ride: populatedRide });
   } catch (error) {
+    console.error("Error accepting ride:", error);
     res
       .status(500)
       .json({ message: "Error accepting ride", error: error.message });
@@ -344,7 +348,7 @@ exports.acceptRide = async (req, res) => {
 // Reject Ride
 exports.rejectRide = async (req, res) => {
   const { rideId } = req.params;
-  const driverId = req.user._id;
+  const driverId = req.user.getDataValue("id");
 
   try {
     const ride = await Ride.findById(rideId);
@@ -732,7 +736,7 @@ exports.updateRideStatus = async (req, res) => {
     const user = await User.findById(ride.user);
     
     // Populate driver info for the notification data
-    const populatedRide = await Ride.findById(ride._id).populate("driver", "firstName lastName profilePicture phone vehicleInfo");
+    const populatedRide = await Ride.findById(ride._id).populate("driver", "firstName lastName profilePicture phone carCategory serviceType");
 
     // Notify user via multi-channel
     await notifyUser(user, {
@@ -808,7 +812,7 @@ exports.getAvailableRides = async (req, res) => {
 
 // Get Rides by Driver
 exports.getDriverRides = async (req, res) => {
-  const driverId = req.user._id; // Assume the driver is authenticated
+  const driverId = req.user.getDataValue("id");
 
   try {
     const driverRides = await Ride.find({ driver: driverId }).populate("user", "firstName lastName profilePicture phone").sort({

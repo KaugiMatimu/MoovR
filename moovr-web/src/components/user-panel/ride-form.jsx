@@ -16,13 +16,34 @@ const RideForm = () => {
   const [scheduleTime, setScheduleTime] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [isResolvingPickupAddress, setIsResolvingPickupAddress] = useState(false);
   const [locationError, setLocationError] = useState("");
+  const [pickupAccuracy, setPickupAccuracy] = useState(null);
 
   const mapRef = useRef(null);
   const directionsServiceRef = useRef(null);
   const directionsRendererRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const pickupMarkerRef = useRef(null);
+  const pickupManuallyEditedRef = useRef(false);
+  const pickupRequestRef = useRef(0);
+  const pickupAddressRequestRef = useRef(null);
+  const locationWatchRef = useRef(null);
+  const locationTimeoutRef = useRef(null);
   const navigate = useNavigate();
+
+  const clearLocationWatch = useCallback(() => {
+    if (locationWatchRef.current !== null) {
+      navigator.geolocation?.clearWatch(locationWatchRef.current);
+      locationWatchRef.current = null;
+    }
+    if (locationTimeoutRef.current !== null) {
+      window.clearTimeout(locationTimeoutRef.current);
+      locationTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearLocationWatch, [clearLocationWatch]);
 
   const loadGoogleMapsScript = useCallback(() => {
     return new Promise((resolve, reject) => {
@@ -55,30 +76,43 @@ const RideForm = () => {
     const preferredTypes = [
       "street_number",
       "route",
+      "premise",
+      "subpremise",
+      "neighborhood",
       "sublocality_level_1",
+      "sublocality_level_2",
+      "sublocality",
       "locality",
       "administrative_area_level_1",
-      "country",
     ];
 
-    const valuesByType = {};
+    const valuesByType = new Map();
     addressComponents.forEach((component) => {
       component.types.forEach((type) => {
-        if (!valuesByType[type]) {
-          valuesByType[type] = component.long_name;
+        if (!valuesByType.has(type)) {
+          valuesByType.set(type, component.long_name);
         }
       });
     });
 
     const parts = preferredTypes
-      .map((type) => valuesByType[type])
-      .filter(Boolean);
+      .map((type) => valuesByType.get(type))
+      .filter(Boolean)
+      .filter((part, index, allParts) => allParts.findIndex(
+        (candidate) => candidate.toLowerCase() === part.toLowerCase()
+      ) === index);
 
     if (parts.length > 0) {
       return parts.join(", ");
     }
 
-    return addressComponents.map((component) => component.long_name).filter(Boolean).join(", ");
+    return addressComponents
+      .map((component) => component.long_name)
+      .filter(Boolean)
+      .filter((part, index, allParts) => allParts.findIndex(
+        (candidate) => candidate.toLowerCase() === part.toLowerCase()
+      ) === index)
+      .join(", ");
   }, []);
 
   const isPlusCodeAddress = (address) => {
@@ -88,19 +122,25 @@ const RideForm = () => {
   const chooseBestGeocoderResult = useCallback((results) => {
     if (!Array.isArray(results) || results.length === 0) return null;
 
-    const scored = results.map((result) => {
-      let score = 0;
-      const address = result.formatted_address || "";
-      const types = Array.isArray(result.types) ? result.types : [];
+    const precisionScores = {
+      street_address: 100,
+      premise: 95,
+      subpremise: 94,
+      route: 90,
+      intersection: 85,
+      point_of_interest: 80,
+      establishment: 80,
+      neighborhood: 75,
+      sublocality_level_1: 70,
+      sublocality: 68,
+      locality: 60,
+      administrative_area_level_1: 40,
+      country: 10,
+    };
 
-      if (result.address_components) score += 20;
-      if (address && !isPlusCodeAddress(address)) score += 30;
-      if (types.includes("street_address")) score += 15;
-      if (types.includes("route")) score += 10;
-      if (types.includes("locality")) score += 8;
-      if (types.includes("sublocality") || types.includes("sublocality_level_1")) score += 6;
-      if (types.includes("administrative_area_level_1")) score += 4;
-      if (types.includes("country")) score += 2;
+    const scored = results.map((result) => {
+      const types = Array.isArray(result.types) ? result.types : [];
+      const score = Math.max(0, ...types.map((type) => precisionScores[type] || 0));
 
       return { result, score };
     });
@@ -113,15 +153,88 @@ const RideForm = () => {
     (result) => {
       if (!result) return "";
       const address = result.formatted_address || "";
-      const readable = address && !isPlusCodeAddress(address)
-        ? address
-        : result.address_components
-          ? getFormattedAddress(result.address_components)
-          : result.name || address;
+      const componentAddress = getFormattedAddress(result.address_components);
+      const readable = componentAddress || (
+        address && !isPlusCodeAddress(address) ? address : result.name || address
+      );
       return readable || "";
     },
     [getFormattedAddress]
   );
+
+  const reverseGeocodeLocation = useCallback((location) => {
+    return new Promise((resolve, reject) => {
+      if (!window.google?.maps) {
+        reject(new Error("Google Maps is not ready"));
+        return;
+      }
+
+      new window.google.maps.Geocoder().geocode({ location }, (results, status) => {
+        if (status === "OK" && results?.length) {
+          resolve(chooseBestGeocoderResult(results));
+        } else {
+          reject(new Error(`Address lookup failed: ${status}`));
+        }
+      });
+    });
+  }, [chooseBestGeocoderResult]);
+
+  const updatePickupMarker = useCallback((location) => {
+    const google = window.google;
+    const map = mapInstanceRef.current;
+    if (!google?.maps || !map) return;
+
+    if (!pickupMarkerRef.current) {
+      const marker = new google.maps.Marker({
+        position: location,
+        map,
+        draggable: true,
+        title: "Pickup location. Drag to adjust.",
+      });
+
+      marker.addListener("dragend", async () => {
+        const markerPosition = marker.getPosition();
+        if (!markerPosition) return;
+
+        const movedLocation = {
+          lat: markerPosition.lat(),
+          lng: markerPosition.lng(),
+        };
+        const requestId = ++pickupRequestRef.current;
+        pickupManuallyEditedRef.current = true;
+        setPickupLocation(movedLocation);
+        setPickupAccuracy(null);
+        setPickupAddress("Finding address...");
+        setIsResolvingPickupAddress(true);
+        setLocationError("");
+
+        try {
+          const result = await reverseGeocodeLocation(movedLocation);
+          if (requestId !== pickupRequestRef.current) return;
+          const address = getReadableAddressFromResult(result);
+          setPickupAddress(address || "Dropped pin");
+          setPickupPlaceId(result?.place_id || null);
+        } catch (error) {
+          if (requestId !== pickupRequestRef.current) return;
+          console.error("Unable to resolve the dropped pickup pin:", error);
+          setPickupAddress("Dropped pin");
+          setLocationError("We couldn't find a street address for this pin. Your pickup point is still marked on the map.");
+        } finally {
+          if (requestId === pickupRequestRef.current) {
+            setIsResolvingPickupAddress(false);
+          }
+        }
+      });
+
+      pickupMarkerRef.current = marker;
+    } else {
+      pickupMarkerRef.current.setPosition(location);
+      pickupMarkerRef.current.setMap(map);
+    }
+
+    map.setCenter(location);
+    map.setZoom(17);
+  }, [getReadableAddressFromResult, reverseGeocodeLocation]);
 
   const initializeAutocomplete = useCallback(
     (type) => {
@@ -149,20 +262,29 @@ const RideForm = () => {
         const placeId = place.place_id || null;
 
         if (type === "pickup") {
+          clearLocationWatch();
+          pickupRequestRef.current += 1;
+          pickupManuallyEditedRef.current = true;
+          setIsDetectingLocation(false);
           setPickupLocation(location);
           setPickupAddress(formattedAddress);
           setPickupPlaceId(placeId);
+          setPickupAccuracy(null);
+          setIsResolvingPickupAddress(false);
+          updatePickupMarker(location);
         } else {
           setDropoffLocation(location);
           setDropoffAddress(formattedAddress);
           setDropoffPlaceId(placeId);
         }
 
-        mapInstanceRef.current.setCenter(place.geometry.location);
-        mapInstanceRef.current.setZoom(14);
+        if (type === "dropoff") {
+          mapInstanceRef.current.setCenter(place.geometry.location);
+          mapInstanceRef.current.setZoom(14);
+        }
       });
     },
-    [getFormattedAddress]
+    [clearLocationWatch, getReadableAddressFromResult, updatePickupMarker]
   );
 
   const fetchCurrentLocation = useCallback(() => {
@@ -170,93 +292,115 @@ const RideForm = () => {
       setLocationError("Geolocation is not supported by your browser.");
       return;
     }
-    setIsDetectingLocation(true);
-    setLocationError("");
 
-    const processPosition = (position) => {
-      const pos = {
+    clearLocationWatch();
+    const requestId = ++pickupRequestRef.current;
+    let bestAccuracy = Infinity;
+    let bestPosition = null;
+
+    setIsDetectingLocation(true);
+    setIsResolvingPickupAddress(false);
+    setLocationError("");
+    setPickupLocation(null);
+    setPickupAddress("");
+    setPickupPlaceId(null);
+    setPickupAccuracy(null);
+    pickupAddressRequestRef.current = null;
+    pickupMarkerRef.current?.setMap(null);
+
+    const stopWatching = () => {
+      if (locationWatchRef.current !== null) {
+        navigator.geolocation.clearWatch(locationWatchRef.current);
+        locationWatchRef.current = null;
+      }
+      if (locationTimeoutRef.current !== null) {
+        window.clearTimeout(locationTimeoutRef.current);
+        locationTimeoutRef.current = null;
+      }
+    };
+
+    const rejectLocation = (message) => {
+      if (requestId !== pickupRequestRef.current) return;
+      stopWatching();
+      setIsDetectingLocation(false);
+      setPickupAccuracy(Number.isFinite(bestAccuracy) ? Math.round(bestAccuracy) : null);
+      setLocationError(message);
+    };
+
+    const acceptLocation = (position, accuracy) => {
+      if (requestId !== pickupRequestRef.current || pickupManuallyEditedRef.current) return;
+      stopWatching();
+      const location = {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
       };
 
-      if (!window.google || !window.google.maps) {
-        setPickupLocation(pos);
-        setPickupAddress("Current Location");
-        setIsDetectingLocation(false);
-        return;
+      setPickupLocation(location);
+      setPickupAddress("Current Location");
+      setPickupPlaceId(null);
+      setPickupAccuracy(Math.round(accuracy));
+      setIsDetectingLocation(false);
+      if (accuracy > 100) {
+        setLocationError(`Using the best GPS fix available (about ±${Math.round(accuracy)} m). Adjust the map pin to confirm your exact pickup point.`);
+      } else {
+        setLocationError("");
       }
-
-      const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode({ location: pos }, (results, status) => {
-        if (status === "OK" && results?.length) {
-          const bestResult = chooseBestGeocoderResult(results);
-          setPickupLocation(pos);
-          setPickupAddress(getReadableAddressFromResult(bestResult));
-          setPickupPlaceId(bestResult?.place_id || null);
-          if (mapInstanceRef.current) {
-            mapInstanceRef.current.setCenter(pos);
-            mapInstanceRef.current.setZoom(14);
-          }
-        } else {
-          setPickupLocation(pos);
-          setPickupAddress("Current Location");
-          setLocationError("Unable to resolve your address. Using your current location.");
-          console.error("Geocoder failed due to:", status);
-        }
-        setIsDetectingLocation(false);
-      });
     };
 
-    // Try to get current position with a larger timeout
-    navigator.geolocation.getCurrentPosition(
-      processPosition,
-      (error) => {
-        if (error.code === error.TIMEOUT) {
-          // On timeout, retry silently using watchPosition with a longer timeout.
-          let retryWatchId = null;
-          retryWatchId = navigator.geolocation.watchPosition(
-            (pos) => {
-              processPosition(pos);
-              if (retryWatchId !== null) navigator.geolocation.clearWatch(retryWatchId);
-            },
-            (err2) => {
-              switch (err2.code) {
-                case err2.PERMISSION_DENIED:
-                  setLocationError("Location access denied. Please enable location permissions in your browser.");
-                  break;
-                case err2.POSITION_UNAVAILABLE:
-                  setLocationError("Location information is unavailable.");
-                  break;
-                case err2.TIMEOUT:
-                  setLocationError("Unable to detect your location. Please enter pickup manually.");
-                  break;
-                default:
-                  setLocationError("Unable to detect your location. Please enter pickup manually.");
-                  break;
-              }
-              setIsDetectingLocation(false);
-              if (retryWatchId !== null) navigator.geolocation.clearWatch(retryWatchId);
-            },
-            { enableHighAccuracy: true, timeout: 60000, maximumAge: 0 }
+    const onPosition = (position) => {
+      if (requestId !== pickupRequestRef.current || pickupManuallyEditedRef.current) return;
+      const accuracy = position.coords.accuracy;
+      if (!Number.isFinite(accuracy) || accuracy <= 0) return;
+
+      if (accuracy < bestAccuracy) {
+        bestAccuracy = accuracy;
+        bestPosition = position;
+        setPickupAccuracy(Math.round(accuracy));
+      }
+      if (accuracy <= 50) {
+        acceptLocation(position, accuracy);
+      }
+    };
+
+    const onPositionError = (error) => {
+      if (requestId !== pickupRequestRef.current) return;
+
+      if (error.code === error.PERMISSION_DENIED) {
+        rejectLocation("Location access was denied. Enable precise location permission in your browser, or enter your pickup manually.");
+      } else if (bestPosition && bestAccuracy <= 250) {
+        acceptLocation(bestPosition, bestAccuracy);
+      } else if (Number.isFinite(bestAccuracy)) {
+        rejectLocation(
+          `GPS is only accurate to about ±${Math.round(bestAccuracy)} m. Please try again or enter your pickup manually.`
+        );
+      } else {
+        rejectLocation("Couldn't get a GPS fix. Check that location is enabled, then try again or enter your pickup manually.");
+      }
+    };
+
+    try {
+      locationWatchRef.current = navigator.geolocation.watchPosition(
+        onPosition,
+        onPositionError,
+        { enableHighAccuracy: true, timeout: 60000, maximumAge: 0 }
+      );
+      locationTimeoutRef.current = window.setTimeout(() => {
+        if (requestId !== pickupRequestRef.current) return;
+        if (bestPosition && bestAccuracy <= 250) {
+          acceptLocation(bestPosition, bestAccuracy);
+        } else if (Number.isFinite(bestAccuracy)) {
+          rejectLocation(
+            `GPS is only accurate to about ±${Math.round(bestAccuracy)} m, so we didn't set it as your pickup. Enable precise location or enter your pickup manually.`
           );
         } else {
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              setLocationError("Location access denied. Please enable location permissions in your browser.");
-              break;
-            case error.POSITION_UNAVAILABLE:
-              setLocationError("Location information is unavailable.");
-              break;
-            default:
-              setLocationError("Unable to detect your location. Please enter pickup manually.");
-              break;
-          }
-          setIsDetectingLocation(false);
+          rejectLocation("Couldn't get a GPS fix. Enable precise location or enter your pickup manually.");
         }
-      },
-      { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
-    );
-  }, []);
+      }, 30000);
+    } catch (error) {
+      console.error("Unable to start GPS location tracking:", error);
+      rejectLocation("Couldn't start location detection. Enable precise location or enter your pickup manually.");
+    }
+  }, [clearLocationWatch]);
 
   const initializeMap = useCallback(() => {
     if (!window.google || !window.google.maps) {
@@ -265,7 +409,7 @@ const RideForm = () => {
     }
 
     mapInstanceRef.current = new window.google.maps.Map(mapRef.current, {
-      center: { lat: 51.505, lng: -0.09 },
+      center: { lat: 6.5244, lng: 3.3792 },
       zoom: 13,
     });
 
@@ -277,14 +421,53 @@ const RideForm = () => {
     initializeAutocomplete("dropoff");
 
     setIsMapsReady(true);
-    fetchCurrentLocation();
-  }, [fetchCurrentLocation, initializeAutocomplete]);
+  }, [initializeAutocomplete]);
 
   useEffect(() => {
+    fetchCurrentLocation();
     loadGoogleMapsScript()
       .then(initializeMap)
       .catch(() => toast.error("Failed to load Google Maps script."));
-  }, [initializeMap, loadGoogleMapsScript]);
+  }, [fetchCurrentLocation, initializeMap, loadGoogleMapsScript]);
+
+  useEffect(() => {
+    if (!isMapsReady || !pickupLocation) return;
+
+    updatePickupMarker(pickupLocation);
+    if (pickupManuallyEditedRef.current) return;
+
+    const locationKey = `${pickupLocation.lat},${pickupLocation.lng}`;
+    if (pickupAddressRequestRef.current === locationKey) return;
+    pickupAddressRequestRef.current = locationKey;
+
+    const requestId = pickupRequestRef.current;
+    setIsResolvingPickupAddress(true);
+    reverseGeocodeLocation(pickupLocation)
+      .then((result) => {
+        if (requestId !== pickupRequestRef.current || pickupManuallyEditedRef.current) return;
+        setPickupAddress(getReadableAddressFromResult(result) || "Current Location");
+        setPickupPlaceId(result?.place_id || null);
+      })
+      .catch((error) => {
+        if (requestId !== pickupRequestRef.current) return;
+        console.error("Unable to resolve the current pickup location:", error);
+        if (!pickupManuallyEditedRef.current) {
+          setPickupAddress("Current Location");
+          setLocationError("We couldn't find a street address. Your pickup pin is marked on the map; drag it to adjust the meeting point.");
+        }
+      })
+      .finally(() => {
+        if (requestId === pickupRequestRef.current) {
+          setIsResolvingPickupAddress(false);
+        }
+      });
+  }, [
+    getReadableAddressFromResult,
+    isMapsReady,
+    pickupLocation,
+    reverseGeocodeLocation,
+    updatePickupMarker,
+  ]);
 
   useEffect(() => {
     if (!pickupLocation || !dropoffLocation) return;
@@ -355,6 +538,7 @@ const RideForm = () => {
         setPickupLocation(currentPickup);
         setPickupAddress(currentPickupAddr);
         setPickupPlaceId(currentPickupId);
+        updatePickupMarker(currentPickup);
       }
 
       if (!currentDropoff && currentDropoffAddr) {
@@ -411,13 +595,56 @@ const RideForm = () => {
               <input
                 id="pickup-input"
                 type="text"
-                placeholder="Enter pickup location"
+                placeholder={isDetectingLocation ? "Finding your pickup location..." : "Enter or confirm pickup location"}
                 value={pickupAddress}
-                onChange={(e) => setPickupAddress(e.target.value)}
+                onChange={(e) => {
+                  clearLocationWatch();
+                  pickupManuallyEditedRef.current = true;
+                  setIsDetectingLocation(false);
+                  setPickupAddress(e.target.value);
+                  setPickupLocation(null);
+                  setPickupPlaceId(null);
+                  setPickupAccuracy(null);
+                  pickupRequestRef.current += 1;
+                  setIsResolvingPickupAddress(false);
+                  setLocationError("");
+                  pickupMarkerRef.current?.setMap(null);
+                }}
                 className="bg-transparent focus:outline-none w-full"
                 autoComplete="off"
               />
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="text-gray-600" aria-live="polite">
+              {isDetectingLocation
+                ? pickupAccuracy !== null
+                  ? `Getting your location... best GPS accuracy ±${pickupAccuracy} m`
+                  : "Searching for a precise GPS fix..."
+                : isResolvingPickupAddress
+                  ? "Finding the pickup address..."
+                  : pickupLocation && pickupAccuracy !== null
+                    ? `Current location · GPS accuracy about ±${pickupAccuracy} m`
+                    : pickupAccuracy !== null
+                      ? `GPS fix is only accurate to about ±${pickupAccuracy} m`
+                    : pickupLocation
+                      ? "Pickup point set · drag the map pin to adjust"
+                      : "Choose an address or use your current location"}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                pickupRequestRef.current += 1;
+                pickupManuallyEditedRef.current = false;
+                setIsResolvingPickupAddress(false);
+                fetchCurrentLocation();
+              }}
+              disabled={isDetectingLocation || isResolvingPickupAddress}
+              className="font-medium text-purple-700 hover:text-purple-900 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isDetectingLocation ? "Locating..." : "Use my current location"}
+            </button>
           </div>
 
           <div className="flex items-center bg-gray-100 rounded-full px-4 py-4">
@@ -458,9 +685,9 @@ const RideForm = () => {
           <button
             type="button"
             onClick={handleSeePricing}
-            disabled={isLoading || !isMapsReady}
+            disabled={isLoading || !isMapsReady || isDetectingLocation || isResolvingPickupAddress}
             className={`w-full py-3 text-lg rounded-full ${
-              isMapsReady && !isLoading
+              isMapsReady && !isLoading && !isDetectingLocation && !isResolvingPickupAddress
                 ? "bg-purple-500 text-white hover:bg-purple-600"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
@@ -469,7 +696,7 @@ const RideForm = () => {
           </button>
 
           {locationError && (
-            <p className="mt-2 text-sm text-red-500">{locationError}</p>
+            <p className="mt-2 text-sm text-amber-700" role="status">{locationError}</p>
           )}
         </form>
 

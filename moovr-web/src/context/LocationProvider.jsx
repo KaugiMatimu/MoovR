@@ -20,7 +20,7 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     // Initialize the socket connection with explicit open/close handling
     const socketInstance = io(SOCKET_URL, {
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"],
       withCredentials: true,
       autoConnect: false,
       reconnection: true,

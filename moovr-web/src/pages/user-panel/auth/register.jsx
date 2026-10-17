@@ -9,6 +9,7 @@ import { initRecaptchaVerifier } from "../../../utils/recaptcha";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 import Cookies from "js-cookie";
+import { AppleIcon, GoogleIcon } from "../../../components/SocialIcons";
 
 const Register = () => {
   const [countryCode, setCountryCode] = useState("+92");
@@ -188,20 +189,29 @@ const Register = () => {
       }
     } catch (error) {
       console.error("Google Login Popup Error:", error);
-      if (error.code === 'auth/popup-blocked') {
+      const shouldRetryRedirect =
+        error?.code === 'auth/popup-blocked' ||
+        error?.code === 'auth/internal-error' ||
+        error?.code === 'auth/network-request-failed' ||
+        error?.code === 'auth/operation-not-supported-in-this-environment' ||
+        /ERR_CONNECTION_CLOSED|ERR_CONNECTION_RESET|Failed to fetch|apis.google.com|NetworkError/i.test(error?.message || '');
+
+      if (shouldRetryRedirect) {
         try {
           await signInWithRedirect(auth, googleProvider);
+          return;
         } catch (redirectError) {
           console.error("Google Login Redirect Error:", redirectError);
           toast.error("Google sign-in failed. Please try again.");
           setLoading(false);
+          return;
         }
-      } else if (error.code !== 'auth/cancelled-by-user') {
-        toast.error(error.message || "Google Sign-In failed.");
-        setLoading(false);
-      } else {
-        setLoading(false);
       }
+
+      if (error?.code !== 'auth/cancelled-by-user') {
+        toast.error(error?.message || "Google Sign-In failed.");
+      }
+      setLoading(false);
     }
   };
 
@@ -309,19 +319,11 @@ const Register = () => {
               onClick={handleGoogleLogin}
               className="w-full py-2.5 border border-gray-300 rounded-full flex items-center justify-center space-x-2 hover:bg-gray-50 transition shadow-sm"
             >
-              <img
-                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                alt="Google"
-                className="w-5 h-5"
-              />
+              <GoogleIcon className="w-5 h-5" />
               <span className="text-sm font-medium">Continue with Google</span>
             </button>
             <button className="w-full py-2.5 border border-gray-300 rounded-full flex items-center justify-center space-x-2 hover:bg-gray-50 transition shadow-sm">
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/633px-Apple_logo_black.svg.png"
-                alt="Apple"
-                className="w-5 h-5"
-              />
+              <AppleIcon className="w-5 h-5" />
               <span className="text-sm font-medium">Continue with Apple</span>
             </button>
           </div>

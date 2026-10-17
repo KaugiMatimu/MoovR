@@ -12,13 +12,13 @@ NODE_ENV=production
 VITE_API_URL=https://api.moovr.taxi
 
 # ==========================================
-# DATABASE (MongoDB)
+# DATABASE
 # ==========================================
-# Option 1: MongoDB Atlas (Cloud - Recommended)
-MONGODB_URI=mongodb+srv://username:password@cluster0.mongodb.net/moovr_db?retryWrites=true&w=majority
+# Docker Compose starts a local PostgreSQL instance with development-only credentials.
+# Run `docker compose up -d postgres` from the repository root.
+DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5433/moovr
+DATABASE_SSL=false
 
-# Option 2: Local MongoDB
-# MONGODB_URI=mongodb://localhost:27017/moovr_db
 
 # ==========================================
 # AUTHENTICATION
@@ -221,10 +221,10 @@ openssl rand -base64 32
 1. Go to https://www.twilio.com/console
 2. Copy: Account SID, Auth Token, Phone Number
 
-### MongoDB Atlas Connection
-1. Go to https://www.mongodb.com/cloud/atlas
-2. Create cluster → Connect → Get connection string
-3. Format: `mongodb+srv://username:password@cluster.mongodb.net/database`
+### Local PostgreSQL
+1. Start Docker Desktop.
+2. From the repository root, run `docker compose up -d postgres`.
+3. The local container uses the development URL and credentials in `moovr-backend/.env`.
 
 ### Gmail SMTP
 1. Enable 2-Factor Authentication

@@ -2,6 +2,7 @@ import { FiChevronRight, FiCheckCircle } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import Cookies from "js-cookie";
 import { BaseURL } from "../../../utils/BaseURL";
 import { DotLoader } from "react-spinners";
 
@@ -13,20 +14,29 @@ export default function Welcome() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = Cookies.get("token") || localStorage.getItem("token");
+        if (!token || token === "null" || token === "undefined") {
+          navigate("/choose", { replace: true, state: { role: "driver" } });
+          return;
+        }
+
         const response = await axios.get(`${BaseURL}/auth/get-user`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setUserData(response.data.user);
         localStorage.setItem("userData", JSON.stringify(response.data.user));
       } catch (err) {
-        console.error("Error fetching user data:", err);
+        if (err.response?.status === 401) {
+          navigate("/choose", { replace: true, state: { role: "driver" } });
+        } else {
+          console.error("Error fetching user data:", err);
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchUser();
-  }, []);
+  }, [navigate]);
 
   const isComplete = (stepKey) => {
     if (!userData) return false;
@@ -43,6 +53,8 @@ export default function Welcome() {
         return !!userData.documents?.vehicleInsurance;
       case "/d/terms":
         return !!userData.termsAccepted;
+      case "/d/settings":
+        return !!userData.phone;
       default:
         return false;
     }
@@ -54,9 +66,17 @@ export default function Welcome() {
     userData.documents?.drivingLicense && 
     userData.documents?.vehicleRegistrationBook &&
     userData.documents?.vehicleInsurance &&
+    userData.phone &&
     userData.termsAccepted;
 
   const steps = [
+    ...(!userData?.phone
+      ? [{
+          title: "Add your phone number",
+          subtitle: "Required for driver account approval",
+          key: "/d/settings",
+        }]
+      : []),
     {
       title: "CNIC Front side",
       key: "/d/setup-account",

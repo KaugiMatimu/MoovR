@@ -1,6 +1,7 @@
 const CarListing = require("../models/carListing");
 const User = require("../models/User");
 const paystack = require("../utils/paystack");
+const { randomUUID } = require("crypto");
 
 // Rent a Car
 exports.rentCar = async (req, res) => {
@@ -47,12 +48,18 @@ exports.rentCar = async (req, res) => {
     // }
 
     // Add the rental period to the car listing
-    carListing.rentalPeriods.push({
+    const rentalId = randomUUID();
+    carListing.rentalPeriods = [...(carListing.rentalPeriods || []), {
+      id: rentalId,
+      _id: rentalId,
       startDate: new Date(rentStartDate),
       endDate: new Date(rentEndDate),
       user: userId,
       deliveryLocation,
-    });
+      status: "pending",
+      paymentMethod: paymentMethod || "Cash",
+      createdAt: new Date(),
+    }];
 
     carListing.isAvailable = false; // Mark the car as not available
 
@@ -127,7 +134,10 @@ exports.getTotalRentedCarsByUser = async (req, res) => {
   const userId = req.user._id;
 
   try {
-    const carListings = await CarListing.find({ "rentalPeriods.user": userId });
+    const allListings = await CarListing.find();
+    const carListings = allListings.filter((listing) =>
+      (listing.rentalPeriods || []).some((period) => String(period.user) === String(userId))
+    );
     const totalRentedCars = carListings.length;
 
     res.status(200).json({ totalRentedCars });
@@ -141,10 +151,10 @@ exports.getTotalRentedCarsByUser = async (req, res) => {
 // Get Total Number of Rented Cars
 exports.getTotalRentedCars = async (req, res) => {
   try {
-    const carListings = await CarListing.find({
-      "rentalPeriods.0": { $exists: true },
-    });
-    const totalRentedCars = carListings.length;
+    const carListings = await CarListing.find();
+    const totalRentedCars = carListings.filter((listing) =>
+      (listing.rentalPeriods || []).length > 0
+    ).length;
 
     res.status(200).json({ totalRentedCars });
   } catch (error) {
@@ -159,14 +169,12 @@ exports.getCurrentlyRentedCars = async (req, res) => {
   const currentDate = new Date();
 
   try {
-    const carListings = await CarListing.find({
-      rentalPeriods: {
-        $elemMatch: {
-          startDate: { $lte: currentDate },
-          endDate: { $gte: currentDate },
-        },
-      },
-    });
+    const allListings = await CarListing.find();
+    const carListings = allListings.filter((listing) =>
+      (listing.rentalPeriods || []).some((period) =>
+        new Date(period.startDate) <= currentDate && new Date(period.endDate) >= currentDate
+      )
+    );
 
     res.status(200).json({ currentlyRentedCars: carListings });
   } catch (error) {
@@ -181,11 +189,74 @@ exports.getRentedCarsByDriver = async (req, res) => {
   const { driverId } = req.params;
 
   try {
-    const carListings = await CarListing.find({
-      "rentalPeriods.user": driverId,
-    });
+    const allListings = await CarListing.find();
+    const carListings = allListings.filter((listing) =>
+      (listing.rentalPeriods || []).some((period) => String(period.user) === String(driverId))
+    );
 
     res.status(200).json({ rentedCars: carListings });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
+  }
+};
+
+exports.getPendingRentRequests = async (req, res) => {
+  try {
+    const carListings = await CarListing.find()
+      .populate("rentalPeriods.user", "firstName lastName");
+
+    const pendingRequests = carListings.flatMap((carListing) =>
+      carListing.rentalPeriods
+        .filter((period) => period.status === "pending")
+        .map((period) => ({
+          ...period,
+          carId: carListing._id,
+          vehicleName: carListing.vehicleName,
+          image: carListing.image,
+        }))
+    );
+
+    res.status(200).json({ pendingRequests });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
+  }
+};
+
+exports.updateRentalRequestStatus = async (req, res) => {
+  const { carId, rentalId } = req.params;
+  const { status } = req.body;
+
+  if (!["approved", "rejected"].includes(status)) {
+    return res.status(400).json({ message: "Status must be approved or rejected" });
+  }
+
+  try {
+    const carListing = await CarListing.findById(carId);
+    if (!carListing) {
+      return res.status(404).json({ message: "Car listing not found" });
+    }
+
+    const rentalPeriods = carListing.rentalPeriods || [];
+    const rentalIndex = rentalPeriods.findIndex((period) =>
+      String(period.id || period._id) === String(rentalId)
+    );
+    if (rentalIndex < 0) {
+      return res.status(404).json({ message: "Rental request not found" });
+    }
+
+    carListing.rentalPeriods = rentalPeriods.map((period, index) =>
+      index === rentalIndex ? { ...period, status } : period
+    );
+    carListing.isAvailable = !carListing.rentalPeriods.some((period) =>
+      ["pending", "approved"].includes(period.status)
+    );
+
+    await carListing.save();
+    res.status(200).json({ message: "Rental request status updated", carListing });
   } catch (error) {
     res
       .status(500)

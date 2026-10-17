@@ -192,6 +192,7 @@ export const ApprovedDriverRoute = ({ element }) => {
       })
       .then(({ user }) => {
         if (!active) return;
+        localStorage.setItem("userData", JSON.stringify(user));
         const hasRequiredSetup = Boolean(
           user?.firstName &&
           user?.lastName &&
@@ -202,9 +203,13 @@ export const ApprovedDriverRoute = ({ element }) => {
           user?.documents?.vehicleInsurance &&
           user?.termsAccepted
         );
-        const isApproved = user?.verificationStatus === "approved" && user?.isVerified === true;
-        localStorage.setItem("userData", JSON.stringify(user));
-        setStatus(hasRequiredSetup && isApproved ? "approved" : "setup-required");
+        setStatus(
+          hasRequiredSetup &&
+          user?.verificationStatus === "approved" &&
+          user?.isVerified === true
+            ? "approved"
+            : "setup-required"
+        );
       })
       .catch(() => {
         if (active) setStatus("setup-required");

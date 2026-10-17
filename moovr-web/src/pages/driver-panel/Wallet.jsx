@@ -6,11 +6,7 @@ import { IoIosArrowDown, IoIosArrowUp } from "react-icons/io";
 import Header from "../../components/driver-panel/header";
 import { BaseURL } from "../../utils/BaseURL";
 import { toast } from "react-hot-toast";
-import { loadStripe } from "@stripe/stripe-js";
 import { Link } from "react-router-dom";
-
-const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-  "pk_test_51NNbFlFvCsjhgKF3xxt0cly2kp2DfUjM6jc4z7x3TcWRCqn5ntVBED01m0jYXTnUdLTpvPvNyhGUry5DSl3GrJAL00uGfNy7fH";
 
 const Wallet = () => {
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
@@ -21,9 +17,6 @@ const Wallet = () => {
   const [transactions, setTransactions] = useState([]); // State for transactions
   const [isWithdrawVisible, setIsWithdrawVisible] = useState(false); // Manage withdraw form visibility
   const [isAddCashVisible, setIsAddCashVisible] = useState(false); // Manage add cash form visibility
-  const [stripe, setStripe] = useState(null);
-  const [stripeLoadError, setStripeLoadError] = useState(null);
-  const [stripeLoaded, setStripeLoaded] = useState(false);
 
   // Fetch wallet balance and transactions on component load
   useEffect(() => {
@@ -43,20 +36,6 @@ const Wallet = () => {
     fetchWallet();
   }, []);
 
-  useEffect(() => {
-    loadStripe(stripeKey)
-      .then((loadedStripe) => {
-        setStripe(loadedStripe);
-        setStripeLoaded(true);
-      })
-      .catch((error) => {
-        console.error("Stripe initialization failed:", error);
-        setStripeLoadError(error);
-        setStripeLoaded(true);
-      });
-  }, []);
-
-
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
@@ -73,8 +52,8 @@ const Wallet = () => {
   const addMoney = async () => {
     try {
       const token = localStorage.getItem("token");
-      const userData = JSON.parse(localStorage.getItem("user"));
-      const userId = userData?._id;
+      const userData = JSON.parse(localStorage.getItem("user") || localStorage.getItem("userData") || "{}");
+      const userId = userData?._id || userData?.id;
 
       if (!amount || Number(amount) < 1) {
         return toast.error("Minimum amount is ₦1");
@@ -83,11 +62,9 @@ const Wallet = () => {
         return toast.error("User not found. Please log in again.");
       }
 
-      const amountInKobo = Math.round(Number(amount) * 100);
-
       const res = await axios.post(
         `${BaseURL}/wallet/create-payment-intent`,
-        { amount: amountInKobo, userId },
+        { amount: Number(amount), userId },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -96,30 +73,11 @@ const Wallet = () => {
         }
       );
 
-      if (!stripeLoaded) {
-        toast.error("Stripe is still loading. Please wait and try again.");
-        return;
-      }
-
-      if (stripeLoadError || !stripe) {
-        console.error("Stripe is unavailable:", stripeLoadError);
-        toast.error(
-          "Stripe is currently unavailable. Please try again later or use another payment method."
-        );
-        return;
-      }
-
-      if (!res.data?.sessionId) {
+      if (!res.data?.url) {
         throw new Error("Unable to create Stripe checkout session. Please try again later.");
       }
 
-      const { error } = await stripe.redirectToCheckout({
-        sessionId: res.data.sessionId,
-      });
-
-      if (error) {
-        throw error;
-      }
+      window.location.href = res.data.url;
     } catch (err) {
       console.error("Driver top-up error:", err.response?.data || err);
       toast.error(

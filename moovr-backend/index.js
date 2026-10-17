@@ -1,6 +1,5 @@
 // Import required modules
 const express = require("express");
-const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
 const http = require("http");
@@ -12,6 +11,8 @@ const admin = require("firebase-admin");
 
 // Load environment variables from .env file
 dotenv.config({ path: path.join(__dirname, ".env") });
+
+const sequelize = require("./config/database");
 
 if (!process.env.JWT_SECRET) {
   throw new Error("JWT_SECRET is required. Configure it in the backend environment before starting the server.");
@@ -146,12 +147,6 @@ app.options("*", cors(corsOptions));
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true })); // In case form data is used
 
-// Connect to MongoDB
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.error("MongoDB connection error:", err));
-
 // Define routes
 app.use("/api/v1/bookings", driverBookingRoutes);
 app.use("/api/v1/auth", userRoutes);
@@ -186,9 +181,7 @@ app.use((req, res, next) => {
   });
 });
 
-// Start the server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 // Handle server errors
 server.on('error', (error) => {
@@ -207,5 +200,31 @@ process.on('uncaughtException', (error) => {
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+const startServer = async () => {
+  if (!sequelize) {
+    throw new Error("DATABASE_URL is required to start the PostgreSQL backend.");
+  }
+
+  await sequelize.authenticate();
+  console.log("PostgreSQL connected");
+  await sequelize.sync();
+  await sequelize.query(`
+    ALTER TABLE "users" ALTER COLUMN "profilePicture" TYPE TEXT;
+    ALTER TABLE "car_listings" ALTER COLUMN "image" TYPE TEXT;
+    ALTER TABLE "driving_licenses" ALTER COLUMN "imageUrl" TYPE TEXT;
+    ALTER TABLE "proof_of_residencies" ALTER COLUMN "imageUrl" TYPE TEXT;
+    ALTER TABLE "vehicle_insurances" ALTER COLUMN "certificate" TYPE TEXT;
+    ALTER TABLE "vehicle_registration_books" ALTER COLUMN "registrationBook" TYPE TEXT;
+    ALTER TABLE "cnic_fronts" ALTER COLUMN "imageUrl" TYPE TEXT;
+  `);
+  console.log("PostgreSQL schema ready");
+  server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+};
+
+startServer().catch((error) => {
+  console.error("Failed to start PostgreSQL backend:", error);
   process.exit(1);
 });

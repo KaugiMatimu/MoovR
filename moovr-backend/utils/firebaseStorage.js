@@ -47,7 +47,6 @@ const uploadImage = async (buffer) => {
         action: "read",
         expires: "03-01-2500", // Far future
       });
-      console.log("Signed URL generated:", url);
       return url;
     } catch (signedUrlError) {
       console.warn("Failed to generate signed URL, falling back to public URL construction:", signedUrlError.message);
@@ -55,7 +54,6 @@ const uploadImage = async (buffer) => {
       // Fallback: Construct public URL (this requires the bucket/file to be public or having appropriate rules)
       // For Firebase, the public URL format is:
       const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filename)}?alt=media`;
-      console.log("Generated fallback URL:", publicUrl);
       return publicUrl;
     }
   } catch (error) {
